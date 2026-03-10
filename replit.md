@@ -11,6 +11,11 @@ A Next.js 16 web application for Trinity High School Physics - an official study
 - **Grid toggle**: Visual grid overlay option on the drawing canvas
 - **Color palette**: Multiple color options for drawing tools
 - **Adjustable brush size**: Line width slider for drawing
+- **Retrieval Practice Mode**:
+  - Study Units section is hidden (no manual selection)
+  - Topics automatically selected from Coverage toggles
+  - Assessment Depth options available (A-Level, Open Ended)
+  - Multi-topic option is automatically enabled and locked (cannot be changed)
 
 ## Stack
 

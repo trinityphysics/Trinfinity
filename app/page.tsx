@@ -323,6 +323,7 @@ function SetupView({
   setIncludeMultiTopic,
   isDarkMode,
   weakTopics,
+  userCoverage,
 }: {
   selectedLevel: string
   appMode: AppMode
@@ -337,9 +338,18 @@ function SetupView({
   setIncludeMultiTopic: (val: boolean) => void
   isDarkMode: boolean
   weakTopics: WeakTopic[]
+  userCoverage: Record<string, boolean>
 }) {
   const [selectedTopics, setSelectedTopics] = useState<string[]>([])
   const subtopics = QA_SUBTOPICS[selectedLevel] || []
+
+  // Auto-select topics from coverage for retrieval mode
+  useEffect(() => {
+    if (appMode === "retrieval") {
+      const selectedFromCoverage = subtopics.filter(t => userCoverage[t])
+      setSelectedTopics(selectedFromCoverage)
+    }
+  }, [appMode, subtopics, userCoverage])
 
   const toggleTopic = (topic: string) => {
     setSelectedTopics((prev) => (prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic]))
@@ -361,44 +371,70 @@ function SetupView({
 
       <div className="grid lg:grid-cols-3 gap-8 pb-32">
         <div className="lg:col-span-2 space-y-8">
-          <section
-            className={`p-8 rounded-3xl shadow-sm border ${
-              isDarkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"
-            }`}
-          >
-            <h3 className="text-lg font-black mb-6 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-amber-500" />
-                Study Units
-              </div>
-              {selectedTopics.length > 0 && (
-                <span className="text-[10px] bg-red-100 dark:bg-red-900/30 text-[#800000] dark:text-red-400 px-3 py-1 rounded-full font-black uppercase">
-                  {selectedTopics.length} Focus areas
-                </span>
-              )}
-            </h3>
+          {appMode !== "retrieval" && (
+            <section
+              className={`p-8 rounded-3xl shadow-sm border ${
+                isDarkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"
+              }`}
+            >
+              <h3 className="text-lg font-black mb-6 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-amber-500" />
+                  Study Units
+                </div>
+                {selectedTopics.length > 0 && (
+                  <span className="text-[10px] bg-red-100 dark:bg-red-900/30 text-[#800000] dark:text-red-400 px-3 py-1 rounded-full font-black uppercase">
+                    {selectedTopics.length} Focus areas
+                  </span>
+                )}
+              </h3>
 
-            <div className="flex flex-wrap gap-2">
-              {subtopics.map((topic) => {
-                const isSelected = selectedTopics.includes(topic)
-                return (
-                  <button
+              <div className="flex flex-wrap gap-2">
+                {subtopics.map((topic) => {
+                  const isSelected = selectedTopics.includes(topic)
+                  return (
+                    <button
+                      key={topic}
+                      onClick={() => toggleTopic(topic)}
+                      className={`px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all ${
+                        isSelected
+                          ? "border-[#800000] bg-[#800000] text-white shadow-lg"
+                          : isDarkMode
+                            ? "border-slate-700 hover:border-amber-500 hover:text-amber-600 bg-slate-900"
+                            : "border-slate-100 hover:border-amber-500 hover:text-amber-600 bg-white"
+                      }`}
+                    >
+                      {topic}
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+          {appMode === "retrieval" && (
+            <section className={`p-8 rounded-3xl shadow-sm border ${
+              isDarkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"
+            }`}>
+              <h3 className="text-lg font-black mb-6 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-amber-500" />
+                Topics from Coverage
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Topics are automatically selected from your Coverage settings below.</p>
+              <div className="flex flex-wrap gap-2">
+                {selectedTopics.map((topic) => (
+                  <span
                     key={topic}
-                    onClick={() => toggleTopic(topic)}
-                    className={`px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all ${
-                      isSelected
-                        ? "border-[#800000] bg-[#800000] text-white shadow-lg"
-                        : isDarkMode
-                          ? "border-slate-700 hover:border-amber-500 hover:text-amber-600 bg-slate-900"
-                          : "border-slate-100 hover:border-amber-500 hover:text-amber-600 bg-white"
-                    }`}
+                    className="px-4 py-2 rounded-xl text-sm font-bold border-2 border-[#800000] bg-[#800000] text-white shadow-lg"
                   >
                     {topic}
-                  </button>
-                )
-              })}
-            </div>
-          </section>
+                  </span>
+                ))}
+                {selectedTopics.length === 0 && (
+                  <p className="text-sm text-slate-500 italic">Select topics from Coverage below to begin</p>
+                )}
+              </div>
+            </section>
+          )}
 
           <section
             className={`p-8 rounded-3xl shadow-sm border ${
@@ -447,7 +483,9 @@ function SetupView({
                 />
               </label>
               <label
-                className={`group flex items-center justify-between p-5 rounded-2xl cursor-pointer transition-colors border border-transparent ${
+                className={`group flex items-center justify-between p-5 rounded-2xl ${
+                  appMode === "retrieval" ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+                } transition-colors border border-transparent ${
                   isDarkMode
                     ? "bg-slate-900 hover:bg-red-950/20 hover:border-[#800000]/20"
                     : "bg-slate-50 hover:bg-red-50 hover:border-[#800000]/20"
@@ -455,12 +493,17 @@ function SetupView({
               >
                 <div>
                   <p className="font-black text-slate-800 dark:text-white">Multi-topic</p>
-                  <p className="text-xs text-slate-500">Cross-topic application and problem solving</p>
+                  <p className="text-xs text-slate-500">
+                    {appMode === "retrieval" 
+                      ? "Automatically enabled for Retrieval practice" 
+                      : "Cross-topic application and problem solving"}
+                  </p>
                 </div>
                 <input
                   type="checkbox"
-                  checked={includeMultiTopic}
-                  onChange={(e) => setIncludeMultiTopic(e.target.checked)}
+                  checked={appMode === "retrieval" ? true : includeMultiTopic}
+                  onChange={(e) => appMode !== "retrieval" && setIncludeMultiTopic(e.target.checked)}
+                  disabled={appMode === "retrieval"}
                   className="w-6 h-6 rounded-lg accent-[#800000]"
                 />
               </label>
@@ -1843,6 +1886,7 @@ includeALevel={includeALevel}
   setIncludeMultiTopic={setIncludeMultiTopic}
             isDarkMode={isDarkMode}
             weakTopics={weakTopics}
+            userCoverage={userCoverage}
           />
         )}
         {view === "quiz" && (
