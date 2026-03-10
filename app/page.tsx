@@ -89,7 +89,7 @@ const QA_SUBTOPICS: Record<string, string[]> = {
   ],
 }
 
-type AppMode = "mc" | "paper" | null
+type AppMode = "mc" | "paper" | "retrieval" | "targets" | "definitions" | "calculations" | null
 type ViewType = "landing" | "mode" | "setup" | "quiz" | "results"
 
 interface MCQuestion {
@@ -195,7 +195,7 @@ function Landing({ onSelectLevel, isDarkMode }: { onSelectLevel: (level: string)
             Official Study Portal
           </div>
           <h1 className={`text-5xl md:text-7xl font-black mb-6 ${isDarkMode ? "text-white" : "text-[#800000]"}`}>
-            Ad Veritatem.
+            Trinity Boost.
           </h1>
           <p className={`text-xl md:text-2xl mb-12 max-w-2xl mx-auto ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}>
             Select your academic level to access custom physics assessments and mark schemes.
@@ -246,6 +246,10 @@ function ModeSelection({
   const modes = [
     { id: "mc" as const, icon: MousePointer2, title: "Multiple Choice", desc: "Quick-fire recall testing" },
     { id: "paper" as const, icon: FileText, title: "Paper Questions", desc: "Exam-style written problems" },
+    { id: "retrieval" as const, icon: Sparkles, title: "Retrieval", desc: "Active recall practice" },
+    { id: "targets" as const, icon: Award, title: "Targets", desc: "Goal-focused learning" },
+    { id: "definitions" as const, icon: FileText, title: "Definitions", desc: "Key terms and concepts" },
+    { id: "calculations" as const, icon: Zap, title: "Calculations", desc: "Numerical problem solving" },
   ]
 
   return (
@@ -262,7 +266,7 @@ function ModeSelection({
         <p className={`text-lg mb-12 ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}>
           Prepare for your <span className="text-amber-600 font-bold">{selectedLevel}</span> prelims.
         </p>
-        <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {modes.map((mode) => (
             <button
               key={mode.id}
