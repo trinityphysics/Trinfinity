@@ -32,3 +32,14 @@ outputType = "webview"
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[deployment]
+deploymentTarget = "cloudrun"
+run = ["sh", "-c", "npm start"]
+
+[packager]
+language = "bash"
+
+[git]
+enabled = true
+
