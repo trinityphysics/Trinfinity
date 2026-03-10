@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo } from "react"
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import {
   ChevronLeft,
   ChevronRight,
@@ -21,6 +21,13 @@ import {
   Table2,
   CheckCircle2,
   Settings2,
+  Pencil,
+  Minus,
+  Circle,
+  Square,
+  Type,
+  Eraser,
+  Trash2,
 } from "lucide-react"
 
 // Trinity High School Maroon: #800000
@@ -551,6 +558,342 @@ function SetupView({
   )
 }
 
+type DrawingTool = "pen" | "line" | "circle" | "square" | "label" | "eraser"
+
+interface DrawingElement {
+  type: DrawingTool
+  points?: { x: number; y: number }[]
+  start?: { x: number; y: number }
+  end?: { x: number; y: number }
+  text?: string
+  color: string
+  lineWidth: number
+}
+
+function Whiteboard({
+  isOpen,
+  onClose,
+  isDarkMode,
+}: {
+  isOpen: boolean
+  onClose: () => void
+  isDarkMode: boolean
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [tool, setTool] = useState<DrawingTool>("pen")
+  const [isDrawing, setIsDrawing] = useState(false)
+  const [elements, setElements] = useState<DrawingElement[]>([])
+  const [currentElement, setCurrentElement] = useState<DrawingElement | null>(null)
+  const [color, setColor] = useState("#800000")
+  const [lineWidth, setLineWidth] = useState(3)
+  const [labelText, setLabelText] = useState("")
+  const [labelPosition, setLabelPosition] = useState<{ x: number; y: number } | null>(null)
+
+  const getCanvasCoords = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    if (!canvas) return { x: 0, y: 0 }
+    const rect = canvas.getBoundingClientRect()
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+    }
+  }, [])
+
+  const drawElement = useCallback((ctx: CanvasRenderingContext2D, el: DrawingElement) => {
+    ctx.strokeStyle = el.color
+    ctx.fillStyle = el.color
+    ctx.lineWidth = el.lineWidth
+    ctx.lineCap = "round"
+    ctx.lineJoin = "round"
+
+    if (el.type === "pen" && el.points && el.points.length > 1) {
+      ctx.beginPath()
+      ctx.moveTo(el.points[0].x, el.points[0].y)
+      for (let i = 1; i < el.points.length; i++) {
+        ctx.lineTo(el.points[i].x, el.points[i].y)
+      }
+      ctx.stroke()
+    } else if (el.type === "eraser" && el.points && el.points.length > 1) {
+      ctx.strokeStyle = isDarkMode ? "#1e293b" : "#ffffff"
+      ctx.lineWidth = el.lineWidth * 4
+      ctx.beginPath()
+      ctx.moveTo(el.points[0].x, el.points[0].y)
+      for (let i = 1; i < el.points.length; i++) {
+        ctx.lineTo(el.points[i].x, el.points[i].y)
+      }
+      ctx.stroke()
+    } else if (el.type === "line" && el.start && el.end) {
+      ctx.beginPath()
+      ctx.moveTo(el.start.x, el.start.y)
+      ctx.lineTo(el.end.x, el.end.y)
+      ctx.stroke()
+    } else if (el.type === "circle" && el.start && el.end) {
+      const radius = Math.sqrt(Math.pow(el.end.x - el.start.x, 2) + Math.pow(el.end.y - el.start.y, 2))
+      ctx.beginPath()
+      ctx.arc(el.start.x, el.start.y, radius, 0, Math.PI * 2)
+      ctx.stroke()
+    } else if (el.type === "square" && el.start && el.end) {
+      const width = el.end.x - el.start.x
+      const height = el.end.y - el.start.y
+      ctx.beginPath()
+      ctx.strokeRect(el.start.x, el.start.y, width, height)
+    } else if (el.type === "label" && el.start && el.text) {
+      ctx.font = `bold ${el.lineWidth * 6}px sans-serif`
+      ctx.fillText(el.text, el.start.x, el.start.y)
+    }
+  }, [isDarkMode])
+
+  const redrawCanvas = useCallback(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    ctx.fillStyle = isDarkMode ? "#1e293b" : "#ffffff"
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+    elements.forEach((el) => drawElement(ctx, el))
+    if (currentElement) {
+      drawElement(ctx, currentElement)
+    }
+  }, [elements, currentElement, drawElement, isDarkMode])
+
+  useEffect(() => {
+    redrawCanvas()
+  }, [redrawCanvas])
+
+  const handleStart = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    const coords = getCanvasCoords(e)
+
+    if (tool === "label") {
+      setLabelPosition(coords)
+      return
+    }
+
+    setIsDrawing(true)
+
+    if (tool === "pen" || tool === "eraser") {
+      setCurrentElement({
+        type: tool,
+        points: [coords],
+        color,
+        lineWidth,
+      })
+    } else {
+      setCurrentElement({
+        type: tool,
+        start: coords,
+        end: coords,
+        color,
+        lineWidth,
+      })
+    }
+  }
+
+  const handleMove = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !currentElement) return
+    e.preventDefault()
+    const coords = getCanvasCoords(e)
+
+    if (tool === "pen" || tool === "eraser") {
+      setCurrentElement({
+        ...currentElement,
+        points: [...(currentElement.points || []), coords],
+      })
+    } else {
+      setCurrentElement({
+        ...currentElement,
+        end: coords,
+      })
+    }
+  }
+
+  const handleEnd = () => {
+    if (!isDrawing || !currentElement) return
+    setIsDrawing(false)
+    setElements([...elements, currentElement])
+    setCurrentElement(null)
+  }
+
+  const handleLabelSubmit = () => {
+    if (!labelPosition || !labelText.trim()) {
+      setLabelPosition(null)
+      setLabelText("")
+      return
+    }
+
+    const newElement: DrawingElement = {
+      type: "label",
+      start: labelPosition,
+      text: labelText,
+      color,
+      lineWidth,
+    }
+    setElements([...elements, newElement])
+    setLabelPosition(null)
+    setLabelText("")
+  }
+
+  const clearCanvas = () => {
+    setElements([])
+    setCurrentElement(null)
+  }
+
+  const tools: { id: DrawingTool; icon: typeof Pencil; label: string }[] = [
+    { id: "pen", icon: Pencil, label: "Free Draw" },
+    { id: "line", icon: Minus, label: "Line" },
+    { id: "circle", icon: Circle, label: "Circle" },
+    { id: "square", icon: Square, label: "Square" },
+    { id: "label", icon: Type, label: "Label" },
+    { id: "eraser", icon: Eraser, label: "Eraser" },
+  ]
+
+  const colors = ["#800000", "#000000", "#2563eb", "#16a34a", "#d97706", "#dc2626"]
+
+  if (!isOpen) return null
+
+  return (
+    <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+      <div
+        className={`rounded-2xl border-2 overflow-hidden ${
+          isDarkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"
+        }`}
+      >
+        {/* Toolbar */}
+        <div
+          className={`p-3 border-b flex flex-wrap items-center gap-2 ${
+            isDarkMode ? "border-slate-700 bg-slate-900" : "border-slate-200 bg-slate-50"
+          }`}
+        >
+          <div className="flex gap-1">
+            {tools.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTool(t.id)}
+                title={t.label}
+                className={`p-2 rounded-lg transition-all ${
+                  tool === t.id
+                    ? "bg-[#800000] text-white shadow-lg"
+                    : isDarkMode
+                      ? "hover:bg-slate-700 text-slate-300"
+                      : "hover:bg-slate-200 text-slate-600"
+                }`}
+              >
+                <t.icon className="w-5 h-5" />
+              </button>
+            ))}
+          </div>
+
+          <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1" />
+
+          <div className="flex gap-1">
+            {colors.map((c) => (
+              <button
+                key={c}
+                onClick={() => setColor(c)}
+                className={`w-6 h-6 rounded-full transition-all ${
+                  color === c ? "ring-2 ring-offset-2 ring-[#800000] scale-110" : "hover:scale-110"
+                }`}
+                style={{ backgroundColor: c }}
+              />
+            ))}
+          </div>
+
+          <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1" />
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-500">Size:</span>
+            <input
+              type="range"
+              min="1"
+              max="10"
+              value={lineWidth}
+              onChange={(e) => setLineWidth(Number(e.target.value))}
+              className="w-20 accent-[#800000]"
+            />
+          </div>
+
+          <div className="flex-1" />
+
+          <button
+            onClick={clearCanvas}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            Clear
+          </button>
+
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Canvas */}
+        <div className="relative">
+          <canvas
+            ref={canvasRef}
+            width={800}
+            height={400}
+            className="w-full cursor-crosshair touch-none"
+            onMouseDown={handleStart}
+            onMouseMove={handleMove}
+            onMouseUp={handleEnd}
+            onMouseLeave={handleEnd}
+            onTouchStart={handleStart}
+            onTouchMove={handleMove}
+            onTouchEnd={handleEnd}
+          />
+
+          {/* Label Input Popup */}
+          {labelPosition && (
+            <div
+              className={`absolute p-3 rounded-xl shadow-xl border-2 ${
+                isDarkMode ? "bg-slate-800 border-slate-600" : "bg-white border-slate-200"
+              }`}
+              style={{ left: labelPosition.x, top: labelPosition.y }}
+            >
+              <input
+                type="text"
+                placeholder="Enter label..."
+                value={labelText}
+                onChange={(e) => setLabelText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleLabelSubmit()}
+                autoFocus
+                className={`px-3 py-2 rounded-lg border text-sm font-medium outline-none focus:ring-2 ring-[#800000] ${
+                  isDarkMode ? "bg-slate-900 border-slate-700" : "bg-slate-50 border-slate-200"
+                }`}
+              />
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={handleLabelSubmit}
+                  className="flex-1 px-3 py-1.5 bg-[#800000] text-white text-xs font-bold rounded-lg"
+                >
+                  Add
+                </button>
+                <button
+                  onClick={() => {
+                    setLabelPosition(null)
+                    setLabelText("")
+                  }}
+                  className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Quiz({
   currentQuestions,
   currentQuestionIdx,
@@ -584,6 +927,12 @@ function Quiz({
   onNext: () => void
   isDarkMode: boolean
 }) {
+  const [openWhiteboards, setOpenWhiteboards] = useState<Record<string, boolean>>({})
+  
+  const toggleWhiteboard = (id: string) => {
+    setOpenWhiteboards((prev) => ({ ...prev, [id]: !prev[id] }))
+  }
+
   const q = currentQuestions[currentQuestionIdx]
   const progress = ((currentQuestionIdx + 1) / currentQuestions.length) * 100
 
@@ -678,14 +1027,37 @@ function Quiz({
                     <p className="text-xl mb-6 font-bold text-slate-700 dark:text-slate-200">{part.text}</p>
                     <textarea
                       placeholder="Enter your calculation or response..."
-                      className={`w-full p-6 rounded-2xl border-2 mb-6 focus:ring-4 ring-red-500/10 focus:border-[#800000] outline-none transition-all font-medium ${
+                      className={`w-full p-6 rounded-2xl border-2 mb-4 focus:ring-4 ring-red-500/10 focus:border-[#800000] outline-none transition-all font-medium ${
                         isDarkMode ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-white"
                       }`}
                       rows={4}
                       value={paperAnswers[`${currentQuestionIdx}-${pIdx}`] || ""}
                       onChange={(e) => setPaperAnswers(`${currentQuestionIdx}-${pIdx}`, e.target.value)}
                     />
-                    <div className="space-y-4">
+                    
+                    {/* Draw Button */}
+                    <button
+                      onClick={() => toggleWhiteboard(`${currentQuestionIdx}-${pIdx}`)}
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all mb-4 ${
+                        openWhiteboards[`${currentQuestionIdx}-${pIdx}`]
+                          ? "bg-[#800000] text-white"
+                          : isDarkMode
+                            ? "bg-slate-700 hover:bg-slate-600 text-slate-200"
+                            : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                      }`}
+                    >
+                      <Pencil className="w-4 h-4" />
+                      {openWhiteboards[`${currentQuestionIdx}-${pIdx}`] ? "Hide Drawing" : "Draw"}
+                    </button>
+                    
+                    {/* Whiteboard */}
+                    <Whiteboard
+                      isOpen={openWhiteboards[`${currentQuestionIdx}-${pIdx}`] || false}
+                      onClose={() => toggleWhiteboard(`${currentQuestionIdx}-${pIdx}`)}
+                      isDarkMode={isDarkMode}
+                    />
+                    
+                    <div className="space-y-4 mt-4">
                       <button
                         onClick={() => toggleAnswer(`${currentQuestionIdx}-${pIdx}`)}
                         className="flex items-center gap-2 text-sm font-black text-[#800000] dark:text-red-400 hover:text-red-600 transition-colors uppercase tracking-widest"
