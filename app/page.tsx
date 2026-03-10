@@ -296,6 +296,11 @@ function ModeSelection({
   )
 }
 
+interface WeakTopic {
+  topic: string
+  score: number
+}
+
 function SetupView({
   selectedLevel,
   appMode,
@@ -309,6 +314,7 @@ function SetupView({
   includeMultiTopic,
   setIncludeMultiTopic,
   isDarkMode,
+  weakTopics,
 }: {
   selectedLevel: string
   appMode: AppMode
@@ -322,6 +328,7 @@ function SetupView({
   includeMultiTopic: boolean
   setIncludeMultiTopic: (val: boolean) => void
   isDarkMode: boolean
+  weakTopics: WeakTopic[]
 }) {
   const [selectedTopics, setSelectedTopics] = useState<string[]>([])
   const subtopics = QA_SUBTOPICS[selectedLevel] || []
@@ -458,25 +465,40 @@ function SetupView({
             <div className="relative z-10">
               <div className="flex items-center gap-2 mb-6">
                 <Zap className="w-5 h-5 fill-amber-400 text-amber-400" />
-                <h3 className="font-black text-lg uppercase tracking-tighter italic">Quick Start</h3>
+                <h3 className="font-black text-lg uppercase tracking-tighter italic">Needs Revision</h3>
               </div>
               <p className="text-xs text-red-200 mb-6 font-medium">
-                Auto-select high-yield exam topics for {selectedLevel}:
+                Based on your recent performance, focus on these areas:
               </p>
               <div className="space-y-3">
-                {subtopics.slice(0, 3).map((topic, i) => (
-                  <button
-                    key={i}
-                    onClick={() => toggleTopic(topic)}
-                    className={`w-full p-4 rounded-xl text-left transition-all border font-bold text-sm ${
-                      selectedTopics.includes(topic)
-                        ? "bg-amber-500 text-white border-amber-400"
-                        : "bg-white/10 hover:bg-white/20 border-white/10"
-                    }`}
-                  >
-                    {topic}
-                  </button>
-                ))}
+                {weakTopics.length > 0 ? (
+                  weakTopics.map((item, i) => (
+                    <button
+                      key={i}
+                      onClick={() => toggleTopic(item.topic)}
+                      className={`w-full p-4 rounded-xl text-left transition-all border font-bold text-sm ${
+                        selectedTopics.includes(item.topic)
+                          ? "bg-amber-500 text-white border-amber-400"
+                          : "bg-white/10 hover:bg-white/20 border-white/10"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>{item.topic}</span>
+                        <span className="text-xs opacity-70">{item.score}%</span>
+                      </div>
+                      <div className="mt-2 h-1 bg-white/20 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-amber-400 rounded-full" 
+                          style={{ width: `${item.score}%` }}
+                        />
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-sm text-red-200 italic">
+                    Complete some quizzes to see your weak areas here.
+                  </p>
+                )}
               </div>
             </div>
             <div className="absolute -right-8 -bottom-8 opacity-10">
@@ -1015,6 +1037,26 @@ export default function App() {
   const [paperAnswers, setPaperAnswers] = useState<Record<string, string>>({})
   const [paperMarks, setPaperMarks] = useState<Record<string, number>>({})
   const [visibleAnswers, setVisibleAnswers] = useState<Record<string, boolean>>({})
+  const [topicPerformance, setTopicPerformance] = useState<Record<string, { correct: number; total: number }>>({})
+
+  // Calculate weak topics based on performance data
+  const weakTopics = useMemo(() => {
+    const subtopics = QA_SUBTOPICS[selectedLevel] || []
+    const performanceList: WeakTopic[] = []
+    
+    subtopics.forEach(topic => {
+      const perf = topicPerformance[topic]
+      if (perf && perf.total > 0) {
+        const score = Math.round((perf.correct / perf.total) * 100)
+        if (score < 70) { // Topics with less than 70% are considered weak
+          performanceList.push({ topic, score })
+        }
+      }
+    })
+    
+    // Sort by lowest score first and take top 3
+    return performanceList.sort((a, b) => a.score - b.score).slice(0, 3)
+  }, [selectedLevel, topicPerformance])
 
   useEffect(() => {
     if (isDarkMode) document.documentElement.classList.add("dark")
@@ -1029,6 +1071,36 @@ export default function App() {
   const handleModeSelect = (mode: AppMode) => {
     setAppMode(mode)
     setView("setup")
+  }
+
+  const updateTopicPerformance = () => {
+    const newPerformance = { ...topicPerformance }
+    
+    currentQuestions.forEach((q, idx) => {
+      const topic = q.subtopic || q.topic
+      if (!newPerformance[topic]) {
+        newPerformance[topic] = { correct: 0, total: 0 }
+      }
+      
+      if (q.type === "mc") {
+        newPerformance[topic].total += 1
+        if (userSelections[idx] === q.answer) {
+          newPerformance[topic].correct += 1
+        }
+      } else if (q.type === "paper") {
+        q.parts.forEach((part) => {
+          newPerformance[topic].total += part.marks
+          newPerformance[topic].correct += paperMarks[part.id] || 0
+        })
+      }
+    })
+    
+    setTopicPerformance(newPerformance)
+  }
+
+  const handleFinishQuiz = () => {
+    updateTopicPerformance()
+    setView("results")
   }
 
   const generateQuestions = async (topicString: string) => {
@@ -1156,6 +1228,7 @@ includeALevel={includeALevel}
   includeMultiTopic={includeMultiTopic}
   setIncludeMultiTopic={setIncludeMultiTopic}
             isDarkMode={isDarkMode}
+            weakTopics={weakTopics}
           />
         )}
         {view === "quiz" && (
@@ -1173,7 +1246,7 @@ includeALevel={includeALevel}
             handleMCSelect={(qIdx, optIdx) => setUserSelections((prev) => ({ ...prev, [qIdx]: optIdx }))}
             onBackToSetup={() => setView("setup")}
             onPrev={() => setCurrentQuestionIdx((i) => i - 1)}
-            onNext={() => (currentQuestionIdx < currentQuestions.length - 1 ? setCurrentQuestionIdx((i) => i + 1) : setView("results"))}
+            onNext={() => (currentQuestionIdx < currentQuestions.length - 1 ? setCurrentQuestionIdx((i) => i + 1) : handleFinishQuiz())}
             isDarkMode={isDarkMode}
           />
         )}
