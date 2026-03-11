@@ -410,28 +410,41 @@ const DEFINITIONS_BANK: DefinitionEntry[] = [
   { term: "Systematic error", definition: "A consistent error in the same direction that affects every measurement by the same amount", topic: "Uncertainties", level: "Advanced Higher", keywords: ["consistent", "direction"] },
 ]
 
+function shuffleArray<T>(arr: T[]): T[] {
+  const result = [...arr]
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[result[i], result[j]] = [result[j], result[i]]
+  }
+  return result
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
 function generateMCDefQuestions(entries: DefinitionEntry[], allEntries: DefinitionEntry[], count: number = 5): DefMCQuestion[] {
-  const shuffled = [...entries].sort(() => Math.random() - 0.5).slice(0, Math.min(count, entries.length))
+  const shuffled = shuffleArray(entries).slice(0, Math.min(count, entries.length))
   return shuffled.map((entry) => {
     const wrongPool = allEntries.filter((e) => e.term !== entry.term)
-    const wrong = [...wrongPool].sort(() => Math.random() - 0.5).slice(0, 3)
-    const options = [entry.definition, ...wrong.map((e) => e.definition)].sort(() => Math.random() - 0.5)
+    const wrong = shuffleArray(wrongPool).slice(0, 3)
+    const options = shuffleArray([entry.definition, ...wrong.map((e) => e.definition)])
     return { type: "def-mc" as const, entry, options, answer: options.indexOf(entry.definition) }
   })
 }
 
 function generateClozeDefQuestions(entries: DefinitionEntry[], count: number = 5): DefClozeQuestion[] {
   const eligible = entries.filter((e) => e.keywords.length > 0)
-  const shuffled = [...eligible].sort(() => Math.random() - 0.5).slice(0, Math.min(count, eligible.length))
+  const shuffled = shuffleArray(eligible).slice(0, Math.min(count, eligible.length))
   return shuffled.map((entry) => {
     const keyword = entry.keywords[Math.floor(Math.random() * entry.keywords.length)]
-    const blankedDefinition = entry.definition.replace(new RegExp(`\\b${keyword}\\b`, "gi"), "___")
+    const blankedDefinition = entry.definition.replace(new RegExp(`\\b${escapeRegex(keyword)}\\b`, "gi"), "___")
     return { type: "def-cloze" as const, entry, keyword, blankedDefinition }
   })
 }
 
 function generateMatchDefQuestions(entries: DefinitionEntry[], count: number = 5): DefMatchQuestion[] {
-  const shuffled = [...entries].sort(() => Math.random() - 0.5).slice(0, Math.min(count, entries.length))
+  const shuffled = shuffleArray(entries).slice(0, Math.min(count, entries.length))
   const pairs = shuffled.map((e) => ({ term: e.term, definition: e.definition }))
   return [{ type: "def-match" as const, pairs }]
 }
@@ -487,7 +500,7 @@ function DefinitionsMode({
     setSelectedTerm(null)
     setSubmitted(false)
     if (qs[0]?.type === "def-match") {
-      setShuffledMatchDefs([...(qs[0] as DefMatchQuestion).pairs].sort(() => Math.random() - 0.5))
+      setShuffledMatchDefs(shuffleArray((qs[0] as DefMatchQuestion).pairs))
     }
     setPhase("quiz")
   }
