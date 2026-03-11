@@ -444,9 +444,12 @@ const DEFINITIONS_BANK: DefinitionEntry[] = [
   { term: "Systematic error", definition: "A consistent error in the same direction that affects every measurement by the same amount", topic: "Uncertainties", level: "Advanced Higher", keywords: ["consistent", "direction"] },
 ]
 
+const VALID_LEVELS = ["National 5", "Higher", "Advanced Higher"]
+
 function loadDefProgress(level: string): Record<string, DefProgress> {
   try {
     if (typeof window === "undefined") return {}
+    if (!VALID_LEVELS.includes(level)) return {}
     const saved = localStorage.getItem(`trinfinity_def_progress_${level}`)
     return saved ? JSON.parse(saved) : {}
   } catch { return {} }
@@ -455,6 +458,7 @@ function loadDefProgress(level: string): Record<string, DefProgress> {
 function saveDefProgress(level: string, progress: Record<string, DefProgress>) {
   try {
     if (typeof window === "undefined") return
+    if (!VALID_LEVELS.includes(level)) return
     localStorage.setItem(`trinfinity_def_progress_${level}`, JSON.stringify(progress))
   } catch {}
 }
@@ -511,7 +515,8 @@ function generateClozeDefQuestions(
     if (difficulty === "easy") {
       keywordsToBlank = [entry.keywords[Math.floor(Math.random() * entry.keywords.length)]]
     } else if (difficulty === "medium") {
-      keywordsToBlank = shuffleArray([...entry.keywords]).slice(0, Math.min(Math.max(2, Math.floor(entry.keywords.length * 0.6)), entry.keywords.length))
+      const blankCount = Math.min(Math.max(2, Math.floor(entry.keywords.length * 0.6)), entry.keywords.length)
+      keywordsToBlank = shuffleArray([...entry.keywords]).slice(0, blankCount)
     } else {
       keywordsToBlank = [...entry.keywords]
     }
@@ -951,7 +956,7 @@ function DefinitionsMode({
                       <input
                         type="text"
                         value={clozeAnswers[currentIdx]?.[pi] || ""}
-                        onChange={(e) => setClozeAnswers((prev) => ({ ...prev, [currentIdx]: Object.assign([], prev[currentIdx] || [], { [pi]: e.target.value }) }))}
+                        onChange={(e) => setClozeAnswers((prev) => { const arr = [...(prev[currentIdx] || [])]; arr[pi] = e.target.value; return { ...prev, [currentIdx]: arr } })}
                         placeholder={`word ${pi + 1}`}
                         className={`inline-block w-32 px-2 py-1 rounded-lg border-2 font-medium text-base outline-none transition-colors focus:border-[#800000] ${isDarkMode ? "bg-slate-700 border-slate-600 text-white placeholder:text-slate-500" : "bg-white border-slate-200 placeholder:text-slate-400"}`}
                       />
@@ -1176,7 +1181,7 @@ function DefinitionsMode({
                   <div key={i} className={`px-4 py-3 rounded-xl border-2 text-sm ${isCorrect ? "border-green-400 bg-green-50 dark:bg-green-900/20" : "border-red-400 bg-red-50 dark:bg-red-900/20"}`}>
                     <p className="font-black">{q.entry.term}</p>
                     <p className={isDarkMode ? "text-slate-300" : "text-slate-600"}>
-                      {q.type === "def-spot-mistake" ? <>Correct answer: <em>{q.options[q.answer]}</em></> : q.entry.definition}
+                      {q.type === "def-spot-mistake" ? <>Correct answer: <span className="font-medium">{q.options[q.answer]}</span></> : q.entry.definition}
                     </p>
                     {!isCorrect && q.type === "def-mc" && <p className="text-red-600 dark:text-red-400 text-xs mt-1">Your answer: {mcAnswers[i] !== undefined ? q.options[mcAnswers[i]] : "No answer"}</p>}
                     {!isCorrect && q.type === "def-cloze" && <p className="text-red-600 dark:text-red-400 text-xs mt-1">Expected: {q.keywords.join(", ")}</p>}
