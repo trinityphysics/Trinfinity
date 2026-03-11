@@ -24,9 +24,10 @@ Structure for Paper Questions (generate 3 questions as an array):
 
 export async function POST(request: Request) {
   try {
-    const { mode, level, topics, includeALevel, includeMultiTopic } = await request.json()
+    const { mode, level, topics, includeALevel, includeMultiTopic, numberOfQuestions } = await request.json()
 
-    const prompt = `Generate a set of ${mode === "mc" ? "5 Multiple Choice" : "3 Paper"} questions for ${level} Physics.
+    const questionCount = numberOfQuestions || (mode === "mc" ? 5 : 3)
+    const prompt = `Generate a set of ${questionCount} ${mode === "mc" ? "Multiple Choice" : "Paper"} questions for ${level} Physics.
 Topics to cover: ${topics}.
 Advanced Level: ${includeALevel}.
 Multi-topic links: ${includeMultiTopic}.

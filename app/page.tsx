@@ -30,6 +30,8 @@ import {
   Trash2,
   Grid3X3,
   ClipboardList,
+  BookOpen,
+  Clock,
 } from "lucide-react"
 
 // Trinity High School Maroon: #800000
@@ -97,7 +99,8 @@ const QA_SUBTOPICS: Record<string, string[]> = {
   ],
 }
 
-type AppMode = "mc" | "paper" | "retrieval" | "targets" | "definitions" | "calculations" | "assignment" | null
+type AppMode = "mc" | "paper" | "retrieval" | "targets" | "definitions" | "calculations" | "assignment" | "practice" | null
+type TimingMode = "relaxed" | "exam" | "none"
 type ViewType = "landing" | "mode" | "setup" | "quiz" | "results"
 
 interface MCQuestion {
@@ -259,6 +262,7 @@ function ModeSelection({
     { id: "definitions" as const, icon: FileText, title: "Definitions", desc: "Key terms and concepts" },
     { id: "calculations" as const, icon: Zap, title: "Calculations", desc: "Numerical problem solving" },
     { id: "assignment" as const, icon: ClipboardList, title: "Assignment", desc: "Structured task practice" },
+    { id: "practice" as const, icon: BookOpen, title: "Practice", desc: "Progress-based adaptive practice" },
   ]
 
   return (
@@ -326,6 +330,11 @@ function SetupView({
   isDarkMode,
   weakTopics,
   userCoverage,
+  topicPerformance,
+  timingMode,
+  setTimingMode,
+  numberOfQuestions,
+  setNumberOfQuestions,
 }: {
   selectedLevel: string
   appMode: AppMode
@@ -341,9 +350,15 @@ function SetupView({
   isDarkMode: boolean
   weakTopics: WeakTopic[]
   userCoverage: Record<string, boolean>
+  topicPerformance: Record<string, { correct: number; total: number }>
+  timingMode: TimingMode
+  setTimingMode: (val: TimingMode) => void
+  numberOfQuestions: number
+  setNumberOfQuestions: (val: number) => void
 }) {
   const [selectedTopics, setSelectedTopics] = useState<string[]>([])
   const subtopics = QA_SUBTOPICS[selectedLevel] || []
+  const isPracticeOrMC = appMode === "mc" || appMode === "practice"
 
   // Auto-select topics from coverage for retrieval mode
   useEffect(() => {
@@ -352,6 +367,18 @@ function SetupView({
       setSelectedTopics(selectedFromCoverage)
     }
   }, [appMode, subtopics, userCoverage])
+
+  // Auto-select topics for practice mode based on performance < 50%
+  useEffect(() => {
+    if (appMode === "practice") {
+      const practiceTopics = subtopics.filter(t => {
+        const perf = topicPerformance[t]
+        if (!perf || perf.total === 0) return true
+        return (perf.correct / perf.total) * 100 < 50
+      })
+      setSelectedTopics(practiceTopics.length > 0 ? practiceTopics : subtopics)
+    }
+  }, [appMode, subtopics, topicPerformance])
 
   const toggleTopic = (topic: string) => {
     setSelectedTopics((prev) => (prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic]))
@@ -373,7 +400,7 @@ function SetupView({
 
       <div className="grid lg:grid-cols-3 gap-8 pb-32">
         <div className="lg:col-span-2 space-y-8">
-          {appMode !== "retrieval" && (
+          {appMode !== "retrieval" && appMode !== "practice" && (
             <section
               className={`p-8 rounded-3xl shadow-sm border ${
                 isDarkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"
@@ -437,6 +464,32 @@ function SetupView({
               </div>
             </section>
           )}
+          {appMode === "practice" && (
+            <section className={`p-8 rounded-3xl shadow-sm border ${
+              isDarkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"
+            }`}>
+              <h3 className="text-lg font-black mb-2 flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-amber-500" />
+                Practice Topics
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                Topics are automatically selected where your progress is below 50%. Topics not yet attempted are also included.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {selectedTopics.map((topic) => (
+                  <span
+                    key={topic}
+                    className="px-4 py-2 rounded-xl text-sm font-bold border-2 border-[#800000] bg-[#800000] text-white shadow-lg"
+                  >
+                    {topic}
+                  </span>
+                ))}
+                {selectedTopics.length === 0 && (
+                  <p className="text-sm text-slate-500 italic">No topics below 50% found — all topics are included.</p>
+                )}
+              </div>
+            </section>
+          )}
 
           <section
             className={`p-8 rounded-3xl shadow-sm border ${
@@ -450,7 +503,7 @@ function SetupView({
             <div className="space-y-4">
               <label
                 className={`group flex items-center justify-between p-5 rounded-2xl ${
-                  appMode === "mc" ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+                  isPracticeOrMC ? "cursor-not-allowed opacity-50" : "cursor-pointer"
                 } transition-colors border border-transparent ${
                   isDarkMode
                     ? "bg-slate-900 hover:bg-red-950/20 hover:border-[#800000]/20"
@@ -460,22 +513,22 @@ function SetupView({
                 <div>
                   <p className="font-black text-slate-800 dark:text-white">A-Level Challenge</p>
                   <p className="text-xs text-slate-500">
-                    {appMode === "mc"
-                      ? "Not applicable for Multiple Choice"
+                    {isPracticeOrMC
+                      ? "Not applicable in this mode"
                       : "Include challenge questions beyond core syllabus"}
                   </p>
                 </div>
                 <input
                   type="checkbox"
-                  checked={appMode === "mc" ? false : includeALevel}
-                  onChange={(e) => appMode !== "mc" && setIncludeALevel(e.target.checked)}
-                  disabled={appMode === "mc"}
+                  checked={isPracticeOrMC ? false : includeALevel}
+                  onChange={(e) => !isPracticeOrMC && setIncludeALevel(e.target.checked)}
+                  disabled={isPracticeOrMC}
                   className="w-6 h-6 rounded-lg accent-[#800000]"
                 />
               </label>
               <label
                 className={`group flex items-center justify-between p-5 rounded-2xl ${
-                  appMode === "mc" ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+                  isPracticeOrMC ? "cursor-not-allowed opacity-50" : "cursor-pointer"
                 } transition-colors border border-transparent ${
                   isDarkMode
                     ? "bg-slate-900 hover:bg-red-950/20 hover:border-[#800000]/20"
@@ -485,22 +538,22 @@ function SetupView({
                 <div>
                   <p className="font-black text-slate-800 dark:text-white">Open Ended</p>
                   <p className="text-xs text-slate-500">
-                    {appMode === "mc"
-                      ? "Not applicable for Multiple Choice"
+                    {isPracticeOrMC
+                      ? "Not applicable in this mode"
                       : "Include open-ended problem solving questions"}
                   </p>
                 </div>
                 <input
                   type="checkbox"
-                  checked={appMode === "mc" ? false : includeOpenEnded}
-                  onChange={(e) => appMode !== "mc" && setIncludeOpenEnded(e.target.checked)}
-                  disabled={appMode === "mc"}
+                  checked={isPracticeOrMC ? false : includeOpenEnded}
+                  onChange={(e) => !isPracticeOrMC && setIncludeOpenEnded(e.target.checked)}
+                  disabled={isPracticeOrMC}
                   className="w-6 h-6 rounded-lg accent-[#800000]"
                 />
               </label>
               <label
                 className={`group flex items-center justify-between p-5 rounded-2xl ${
-                  appMode === "retrieval" || appMode === "mc" ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+                  appMode === "retrieval" || isPracticeOrMC ? "cursor-not-allowed opacity-50" : "cursor-pointer"
                 } transition-colors border border-transparent ${
                   isDarkMode
                     ? "bg-slate-900 hover:bg-red-950/20 hover:border-[#800000]/20"
@@ -512,68 +565,163 @@ function SetupView({
                   <p className="text-xs text-slate-500">
                     {appMode === "retrieval"
                       ? "Automatically enabled for Retrieval practice"
-                      : appMode === "mc"
-                      ? "Not applicable for Multiple Choice"
+                      : isPracticeOrMC
+                      ? "Not applicable in this mode"
                       : "Cross-topic application and problem solving"}
                   </p>
                 </div>
                 <input
                   type="checkbox"
-                  checked={appMode === "retrieval" ? true : appMode !== "mc" && includeMultiTopic}
-                  onChange={(e) => appMode !== "retrieval" && appMode !== "mc" && setIncludeMultiTopic(e.target.checked)}
-                  disabled={appMode === "retrieval" || appMode === "mc"}
+                  checked={appMode === "retrieval" ? true : !isPracticeOrMC && includeMultiTopic}
+                  onChange={(e) => appMode !== "retrieval" && !isPracticeOrMC && setIncludeMultiTopic(e.target.checked)}
+                  disabled={appMode === "retrieval" || isPracticeOrMC}
                   className="w-6 h-6 rounded-lg accent-[#800000]"
                 />
               </label>
             </div>
           </section>
+
+          <section
+            className={`p-8 rounded-3xl shadow-sm border ${
+              isDarkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"
+            }`}
+          >
+            <h3 className="text-lg font-black mb-6 flex items-center gap-2">
+              <Clock className="w-5 h-5 text-slate-400" />
+              Timing
+            </h3>
+            <div className="space-y-3">
+              {[
+                { value: "none" as TimingMode, label: "No Time Limit", desc: "Take as long as you need" },
+                { value: "relaxed" as TimingMode, label: "Relaxed", desc: "0.5 marks per minute (2 min/mark)" },
+                { value: "exam" as TimingMode, label: "Exam Conditions", desc: "0.9 marks per minute (~67 sec/mark)" },
+              ].map((option) => (
+                <label
+                  key={option.value}
+                  className={`flex items-center gap-4 p-4 rounded-2xl cursor-pointer transition-colors border ${
+                    timingMode === option.value
+                      ? "border-[#800000] bg-red-50 dark:bg-red-950/20"
+                      : isDarkMode
+                        ? "border-slate-700 bg-slate-900 hover:border-slate-600"
+                        : "border-slate-100 bg-slate-50 hover:border-slate-200"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="timingMode"
+                    value={option.value}
+                    checked={timingMode === option.value}
+                    onChange={() => setTimingMode(option.value)}
+                    className="accent-[#800000]"
+                  />
+                  <div>
+                    <p className="font-black text-sm text-slate-800 dark:text-white">{option.label}</p>
+                    <p className="text-xs text-slate-500">{option.desc}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </section>
+
+          <section
+            className={`p-8 rounded-3xl shadow-sm border ${
+              isDarkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"
+            }`}
+          >
+            <h3 className="text-lg font-black mb-6 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-slate-400" />
+              Number of Questions
+            </h3>
+            <p className="text-xs text-slate-500 mb-4">Select how many full questions to include in this assessment.</p>
+            <div className="flex flex-wrap gap-3">
+              {[1, 3, 5, 10, 15].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setNumberOfQuestions(n)}
+                  className={`w-14 h-14 rounded-2xl font-black text-lg border-2 transition-all ${
+                    numberOfQuestions === n
+                      ? "bg-[#800000] text-white border-amber-500 shadow-lg scale-105"
+                      : isDarkMode
+                        ? "bg-slate-900 border-slate-700 hover:border-amber-500 hover:text-amber-500"
+                        : "bg-white border-slate-200 hover:border-[#800000] hover:text-[#800000]"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </section>
         </div>
 
         <div className="space-y-6">
-          <div className="bg-[#800000] text-white p-8 rounded-3xl shadow-xl relative overflow-hidden">
-            <div className="relative z-10">
-              <div className="flex items-center gap-2 mb-6">
-                <Zap className="w-5 h-5 fill-amber-400 text-amber-400" />
-                <h3 className="font-black text-lg uppercase tracking-tighter italic">Needs Revision</h3>
-              </div>
-              <p className="text-xs text-red-200 mb-6 font-medium">
-                Based on your recent performance, focus on these areas:
-              </p>
-              <div className="space-y-3">
-                {weakTopics.length > 0 ? (
-                  weakTopics.map((item, i) => (
-                    <button
-                      key={i}
-                      onClick={() => toggleTopic(item.topic)}
-                      className={`w-full p-4 rounded-xl text-left transition-all border font-bold text-sm ${
-                        selectedTopics.includes(item.topic)
-                          ? "bg-amber-500 text-white border-amber-400"
-                          : "bg-white/10 hover:bg-white/20 border-white/10"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span>{item.topic}</span>
-                        <span className="text-xs opacity-70">{item.score}%</span>
-                      </div>
-                      <div className="mt-2 h-1 bg-white/20 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-amber-400 rounded-full" 
-                          style={{ width: `${item.score}%` }}
-                        />
-                      </div>
-                    </button>
-                  ))
-                ) : (
-                  <p className="text-sm text-red-200 italic">
-                    Complete some quizzes to see your weak areas here.
+          {appMode === "practice" ? (
+            <div className="bg-[#800000] text-white p-8 rounded-3xl shadow-xl relative overflow-hidden">
+              <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-6">
+                  <BookOpen className="w-5 h-5 fill-amber-400 text-amber-400" />
+                  <h3 className="font-black text-lg uppercase tracking-tighter italic">Auto-selected</h3>
+                </div>
+                <p className="text-xs text-red-200 mb-4 font-medium">
+                  Practice mode targets areas where your progress is below 50%. Topics not yet attempted are automatically included.
+                </p>
+                <div className="p-4 bg-white/10 rounded-2xl border border-white/20">
+                  <p className="text-sm font-bold text-red-100">
+                    {selectedTopics.length > 0
+                      ? `${selectedTopics.length} topic${selectedTopics.length !== 1 ? "s" : ""} selected for practice`
+                      : "All topics included for practice"}
                   </p>
-                )}
+                </div>
+              </div>
+              <div className="absolute -right-8 -bottom-8 opacity-10">
+                <Atom className="w-32 h-32" />
               </div>
             </div>
-            <div className="absolute -right-8 -bottom-8 opacity-10">
-              <Atom className="w-32 h-32" />
+          ) : (
+            <div className="bg-[#800000] text-white p-8 rounded-3xl shadow-xl relative overflow-hidden">
+              <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-6">
+                  <Zap className="w-5 h-5 fill-amber-400 text-amber-400" />
+                  <h3 className="font-black text-lg uppercase tracking-tighter italic">Needs Revision</h3>
+                </div>
+                <p className="text-xs text-red-200 mb-6 font-medium">
+                  Based on your recent performance, focus on these areas:
+                </p>
+                <div className="space-y-3">
+                  {weakTopics.length > 0 ? (
+                    weakTopics.map((item, i) => (
+                      <button
+                        key={i}
+                        onClick={() => toggleTopic(item.topic)}
+                        className={`w-full p-4 rounded-xl text-left transition-all border font-bold text-sm ${
+                          selectedTopics.includes(item.topic)
+                            ? "bg-amber-500 text-white border-amber-400"
+                            : "bg-white/10 hover:bg-white/20 border-white/10"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>{item.topic}</span>
+                          <span className="text-xs opacity-70">{item.score}%</span>
+                        </div>
+                        <div className="mt-2 h-1 bg-white/20 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-amber-400 rounded-full" 
+                            style={{ width: `${item.score}%` }}
+                          />
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="text-sm text-red-200 italic">
+                      Complete some quizzes to see your weak areas here.
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="absolute -right-8 -bottom-8 opacity-10">
+                <Atom className="w-32 h-32" />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -1093,6 +1241,7 @@ function Quiz({
   onPrev,
   onNext,
   isDarkMode,
+  timingMode,
 }: {
   currentQuestions: Question[]
   currentQuestionIdx: number
@@ -1109,9 +1258,41 @@ function Quiz({
   onPrev: () => void
   onNext: () => void
   isDarkMode: boolean
+  timingMode: TimingMode
 }) {
   const [openWhiteboards, setOpenWhiteboards] = useState<Record<string, boolean>>({})
   const [submittedDrawings, setSubmittedDrawings] = useState<Record<string, string>>({})
+  const [timeLeft, setTimeLeft] = useState<number | null>(null)
+  const [timerExpired, setTimerExpired] = useState(false)
+
+  // Reset and start timer when question or timing mode changes
+  useEffect(() => {
+    if (timingMode === "none") {
+      setTimeLeft(null)
+      setTimerExpired(false)
+      return
+    }
+    const q = currentQuestions[currentQuestionIdx]
+    if (!q) return
+    const marks = q.type === "mc" ? 1 : q.parts.reduce((sum, p) => sum + p.marks, 0)
+    // relaxed: 1 mark / 0.5 marks per minute = 2 min/mark = 120 s/mark
+    // exam:    1 mark / 0.9 marks per minute ≈ 67 s/mark
+    const secondsPerMark = timingMode === "relaxed" ? 120 : Math.round(60 / 0.9)
+    setTimeLeft(marks * secondsPerMark)
+    setTimerExpired(false)
+  }, [currentQuestionIdx, timingMode, currentQuestions])
+
+  // Countdown
+  useEffect(() => {
+    if (timeLeft === null || timeLeft <= 0) {
+      if (timeLeft === 0) setTimerExpired(true)
+      return
+    }
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => (prev !== null && prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [timeLeft])
   
   const toggleWhiteboard = (id: string) => {
     setOpenWhiteboards((prev) => ({ ...prev, [id]: !prev[id] }))
@@ -1152,6 +1333,30 @@ function Quiz({
             </div>
           </div>
         </div>
+
+        {timeLeft !== null && (
+          <div
+            className={`flex items-center justify-center gap-3 mb-6 p-4 rounded-2xl border-2 transition-colors ${
+              timerExpired
+                ? "bg-red-100 dark:bg-red-900/20 border-red-500 text-red-600 dark:text-red-400"
+                : timeLeft < 60
+                  ? "bg-amber-50 dark:bg-amber-900/20 border-amber-500 text-amber-600 dark:text-amber-400"
+                  : isDarkMode
+                    ? "bg-slate-800 border-slate-700 text-slate-300"
+                    : "bg-slate-50 border-slate-200 text-slate-600"
+            }`}
+          >
+            <Clock className="w-5 h-5" />
+            <span className="font-black text-xl">
+              {timerExpired
+                ? "Time's Up!"
+                : `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, "0")}`}
+            </span>
+            <span className="text-xs font-bold uppercase tracking-widest opacity-70">
+              {timingMode === "relaxed" ? "Relaxed" : "Exam Conditions"}
+            </span>
+          </div>
+        )}
 
         <div
           className={`rounded-[2.5rem] p-10 shadow-xl border-b-8 border-amber-500/20 border-x border-t animate-in fade-in zoom-in-95 duration-300 ${
@@ -1713,6 +1918,8 @@ export default function App() {
   const [paperMarks, setPaperMarks] = useState<Record<string, number>>({})
   const [visibleAnswers, setVisibleAnswers] = useState<Record<string, boolean>>({})
   const [topicPerformance, setTopicPerformance] = useState<Record<string, { correct: number; total: number }>>({})
+  const [timingMode, setTimingMode] = useState<TimingMode>("none")
+  const [numberOfQuestions, setNumberOfQuestions] = useState(5)
 
   // Calculate weak topics based on performance data
   const weakTopics = useMemo(() => {
@@ -1745,7 +1952,7 @@ export default function App() {
 
   const handleModeSelect = (mode: AppMode) => {
     setAppMode(mode)
-    if (mode === "mc") {
+    if (mode === "mc" || mode === "practice") {
       setIncludeALevel(false)
       setIncludeOpenEnded(false)
       setIncludeMultiTopic(false)
@@ -1791,18 +1998,21 @@ export default function App() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mode: appMode,
+          mode: appMode === "practice" ? "mc" : appMode,
           level: selectedLevel,
           topics: topicString,
           includeALevel,
           includeMultiTopic,
+          numberOfQuestions,
         }),
       })
 
       const data = await response.json()
 
       if (data.questions) {
-        setCurrentQuestions(Array.isArray(data.questions) ? data.questions : [data.questions])
+        const allQuestions = Array.isArray(data.questions) ? data.questions : [data.questions]
+        const limitedQuestions = numberOfQuestions > 0 ? allQuestions.slice(0, numberOfQuestions) : allQuestions
+        setCurrentQuestions(limitedQuestions)
         setCurrentQuestionIdx(0)
         setUserSelections({})
         setPaperAnswers({})
@@ -1901,15 +2111,20 @@ export default function App() {
             onGenerate={generateQuestions}
             isGenerating={isGenerating}
             onBack={() => setView("mode")}
-includeALevel={includeALevel}
-  setIncludeALevel={setIncludeALevel}
-  includeOpenEnded={includeOpenEnded}
-  setIncludeOpenEnded={setIncludeOpenEnded}
-  includeMultiTopic={includeMultiTopic}
-  setIncludeMultiTopic={setIncludeMultiTopic}
+            includeALevel={includeALevel}
+            setIncludeALevel={setIncludeALevel}
+            includeOpenEnded={includeOpenEnded}
+            setIncludeOpenEnded={setIncludeOpenEnded}
+            includeMultiTopic={includeMultiTopic}
+            setIncludeMultiTopic={setIncludeMultiTopic}
             isDarkMode={isDarkMode}
             weakTopics={weakTopics}
             userCoverage={userCoverage}
+            topicPerformance={topicPerformance}
+            timingMode={timingMode}
+            setTimingMode={setTimingMode}
+            numberOfQuestions={numberOfQuestions}
+            setNumberOfQuestions={setNumberOfQuestions}
           />
         )}
         {view === "quiz" && (
@@ -1929,6 +2144,7 @@ includeALevel={includeALevel}
             onPrev={() => setCurrentQuestionIdx((i) => i - 1)}
             onNext={() => (currentQuestionIdx < currentQuestions.length - 1 ? setCurrentQuestionIdx((i) => i + 1) : handleFinishQuiz())}
             isDarkMode={isDarkMode}
+            timingMode={timingMode}
           />
         )}
         {view === "results" && (
