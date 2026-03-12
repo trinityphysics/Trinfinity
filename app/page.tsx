@@ -259,7 +259,7 @@ const DEFINITIONS_BANK: DefinitionEntry[] = [
 
   // National 5 - Waves
   { term: "Longitudinal Wave", definition: "A longitudinal wave is one where oscillations are parallel to the direction of energy transfer", topic: "Waves", level: "National 5", keywords: ['oscillations', ‘energy’, ‘parallel’] },
-  { term: "Transverse Wave", definition: "A Transverse wave is one where oscillations are perpendicular to the direction of energy transfer topic: "Waves", level: "National 5", keywords: [‘oscillations’, 'perpendicular'] },
+  { term: "Transverse Wave", definition: "A Transverse wave is one where oscillations are perpendicular to the direction of energy transfer", topic: "Waves", level: "National 5", keywords: [‘oscillations’, 'perpendicular'] },
   { term: "Frequency", definition: "The number of waves produced per second.", topic: "Waves", level: "National 5", keywords: [‘number’, ‘waves’, ‘second’] },
   { term: "Period", definition: "The time taken to produce 1 wave.", topic: "Waves", level: "National 5", keywords: ['time', ‘1 wave’] },
   { term: "Crest", definition: "The top point (peak) of a wave.", topic: "Waves", level: "National 5", keywords: ['peak', 'top point'] },
