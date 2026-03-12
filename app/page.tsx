@@ -270,11 +270,11 @@ const DEFINITIONS_BANK: DefinitionEntry[] = [
   { term: "Diffraction", definition: "The bending of waves through gaps or around obstacles.", topic: "Waves", level: "National 5", keywords: ["bending", "gaps", "obstacles"] },
 
   // National 5 - EM Spectrum
-  { term: "Electromagnetic Spectrum", definition: "A group of all the types of electromagnetic radiation ordered in terms of their wavelength/frequency.", topic: "Waves", level: "National 5", keywords: ["radiation", "wavelength", "frequency"] },
-  { term: "Refraction", definition: "The change in speed of light as it passes between media.", topic: "Waves", level: "National 5", keywords: ["change in speed", "medium", "between"] },
-  { term: "Normal", definition: "A dashed line that is drawn perpendicular (at 90°) to any surface.", topic: "Waves", level: "National 5", keywords: ["perpendicular"] },
-  { term: "Angle of Incidence", definition: "The angle measured between the incident ray and the normal.", topic: "Waves", level: "National 5", keywords: ["incident ray", "normal"] },
-  { term: "Angle of Refraction", definition: "The angle measured between the refracted ray and the normal.", topic: "Waves", level: "National 5", keywords: ["refracted ray", "normal"] },
+  { term: "Electromagnetic Spectrum", definition: "A group of all the types of electromagnetic radiation ordered in terms of their wavelength/frequency.", topic: "EM Spectrum", level: "National 5", keywords: ["radiation", "wavelength", "frequency"] },
+  { term: "Refraction", definition: "The change in speed of light as it passes between media.", topic: "Refraction of Light", level: "National 5", keywords: ["change in speed", "medium", "between"] },
+  { term: "Normal", definition: "A dashed line that is drawn perpendicular (at 90°) to any surface.", topic: "Refraction of Light", level: "National 5", keywords: ["perpendicular"] },
+  { term: "Angle of Incidence", definition: "The angle measured between the incident ray and the normal.", topic: "Refraction of Light", level: "National 5", keywords: ["incident ray", "normal"] },
+  { term: "Angle of Refraction", definition: "The angle measured between the refracted ray and the normal.", topic: "Refraction of Light", level: "National 5", keywords: ["refracted ray", "normal"] },
 
   // Higher — Equations of Motion
   { term: "Uniform acceleration", definition: "Motion where the rate of change of velocity remains constant over time", topic: "Equations of Motion", level: "Higher", keywords: ["constant", "velocity"] },
@@ -460,7 +460,7 @@ const DEF_UNIT_TOPICS: Record<string, Record<string, string[]>> = {
     Space: ["Space Exploration", "Cosmology"],
     "Properties of Matter": ["Specific Heat Capacity", "Pressure, Kinetic Theory and Gas Laws", "Specific Latent Heat"],
     Electricity: ["Current, voltage and resistance", "Electrical Power"],
-    Waves: ["Wave properties", "Refraction of light", "EM Spectrum"],
+    Waves: ["Waves", "Refraction of Light", "EM Spectrum"],
     Radiation: ["Nuclear Radiation"],
   },
   Higher: {
