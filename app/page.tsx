@@ -108,7 +108,7 @@ const QA_SUBTOPICS: Record<string, string[]> = {
 
 type AppMode = "mc" | "paper" | "retrieval" | "definitions" | "calculations" | "assignment" | "practice" | null
 type TimingMode = "relaxed" | "exam" | "none"
-type ViewType = "landing" | "mode" | "setup" | "quiz" | "results" | "definitions" | "calculations"
+type ViewType = "landing" | "mode" | "setup" | "quiz" | "results" | "definitions" | "calculations" | "assignment"
 
 interface MCQuestion {
   type: "mc"
@@ -2418,6 +2418,650 @@ function CalculationsMode({
   return null
 }
 
+function AssignmentMode({
+  selectedLevel,
+  onBack,
+  isDarkMode,
+}: {
+  selectedLevel: string
+  onBack: () => void
+  isDarkMode: boolean
+}) {
+  type AssignPhase = "hub" | "practice" | "mark" | "review" | "improve"
+
+  const [phase, setPhase] = useState<AssignPhase>("hub")
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0)
+  const [answers, setAnswers] = useState<Record<number, string>>({})
+  const [submitted, setSubmitted] = useState(false)
+  const [markingNotes, setMarkingNotes] = useState<Record<number, string>>({})
+  const [markScores, setMarkScores] = useState<Record<number, number>>({})
+  const [reviewFilter, setReviewFilter] = useState<"all" | "strong" | "weak">("all")
+  const [improveAnswers, setImproveAnswers] = useState<Record<number, number>>({})
+  const [improveSubmitted, setImproveSubmitted] = useState(false)
+
+  const cardBase = isDarkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200 shadow-xl"
+  const btnOutline = `rounded-xl font-black border-2 transition-all px-5 py-3`
+
+  // Sample guided practice questions tailored to level
+  const practiceQuestions = [
+    {
+      id: 0,
+      topic: "Forces",
+      guidance: "Think about Newton's Second Law: F = ma. Make sure your answer includes units.",
+      question: `A 5 kg object accelerates at 3 ms⁻². Calculate the resultant force acting on it. Show all working.`,
+      markScheme: "F = ma = 5 × 3 = 15 N",
+      marks: 2,
+    },
+    {
+      id: 1,
+      topic: "Energy",
+      guidance: "Use Ek = ½mv². Don't forget to square the velocity before multiplying.",
+      question: `Calculate the kinetic energy of a 2 kg ball moving at 4 ms⁻¹.`,
+      markScheme: "Ek = ½ × 2 × 4² = ½ × 2 × 16 = 16 J",
+      marks: 2,
+    },
+    {
+      id: 2,
+      topic: "Waves",
+      guidance: "Use the wave equation: v = fλ. Check that your units are consistent.",
+      question: `A wave has a frequency of 200 Hz and a wavelength of 1.5 m. Calculate its speed.`,
+      markScheme: "v = fλ = 200 × 1.5 = 300 ms⁻¹",
+      marks: 2,
+    },
+  ]
+
+  // Sample marking document with rubric
+  const markingDocument = {
+    title: "Assignment Task — Newton's Laws",
+    description: "Read the pupil response below and award marks according to the rubric.",
+    pupilResponse: `A car of mass 1200 kg accelerates from rest to 30 ms⁻¹ in 10 s.
+(a) The student writes: "Using F=ma, a = 30/10 = 3 ms⁻². Therefore F = 1200 × 3 = 3600 N."
+(b) The student writes: "The work done is W = F × d. I need to find distance first using v² = u² + 2as.  30² = 0 + 2 × 3 × s, so s = 900/6 = 150 m. W = 3600 × 150 = 540 000 J."`,
+    rubric: [
+      { id: 0, criterion: "(a) Correct acceleration calculation: a = Δv/t = 30/10 = 3 ms⁻²", maxMarks: 1 },
+      { id: 1, criterion: "(a) Correct force: F = ma = 1200 × 3 = 3600 N with unit", maxMarks: 1 },
+      { id: 2, criterion: "(b) Correct use of kinematic equation to find distance (s = 150 m)", maxMarks: 2 },
+      { id: 3, criterion: "(b) Correct work done: W = 540 000 J (or 540 kJ)", maxMarks: 1 },
+    ],
+  }
+
+  // Sample review data: previous performance on topics (score = percentage 0–100)
+  const reviewData = [
+    { topic: "Forces", score: 80, lastAttempted: "2 days ago", feedback: "Strong understanding of Newton's Laws. Revisit free-body diagrams." },
+    { topic: "Energy", score: 60, lastAttempted: "4 days ago", feedback: "Good with kinetic energy but review potential energy and conservation." },
+    { topic: "Waves", score: 40, lastAttempted: "1 week ago", feedback: "Struggling with wave equation applications. Practice more examples." },
+    { topic: "Electricity", score: 20, lastAttempted: "1 week ago", feedback: "Significant gaps in Ohm's Law and circuit analysis. Prioritise this topic." },
+  ]
+
+  // Improve: targeted multiple-choice questions on weak areas
+  const improveQuestions = [
+    {
+      id: 0,
+      topic: "Waves",
+      question: "A wave has a period of 0.02 s. What is its frequency?",
+      options: ["0.02 Hz", "20 Hz", "50 Hz", "500 Hz"],
+      answer: 2,
+      explanation: "f = 1/T = 1/0.02 = 50 Hz",
+    },
+    {
+      id: 1,
+      topic: "Electricity",
+      question: "A 12 V battery is connected to a 4 Ω resistor. What current flows?",
+      options: ["0.33 A", "3 A", "48 A", "8 A"],
+      answer: 1,
+      explanation: "I = V/R = 12/4 = 3 A",
+    },
+    {
+      id: 2,
+      topic: "Waves",
+      question: "Which property of a wave determines its pitch?",
+      options: ["Amplitude", "Speed", "Frequency", "Wavelength only"],
+      answer: 2,
+      explanation: "Frequency determines pitch — higher frequency = higher pitch.",
+    },
+  ]
+
+  const filteredReview = reviewData.filter((d) => {
+    if (reviewFilter === "strong") return d.score >= 70
+    if (reviewFilter === "weak") return d.score < 70
+    return true
+  })
+
+  const perfColour = (pct: number) =>
+    pct >= 70 ? "text-green-600" : pct >= 50 ? "text-amber-600" : "text-red-600"
+  const perfBar = (pct: number) =>
+    pct >= 70 ? "bg-green-500" : pct >= 50 ? "bg-amber-500" : "bg-red-500"
+
+  // ── Hub ──────────────────────────────────────────────────────────────────
+  if (phase === "hub") {
+    const subModes = [
+      {
+        id: "practice" as const,
+        icon: "📝",
+        title: "Practice",
+        desc: "Guided questions tailored to your level with hints and worked examples to support your learning.",
+        color: "from-blue-600 to-blue-800",
+      },
+      {
+        id: "mark" as const,
+        icon: "✅",
+        title: "Mark",
+        desc: "Mark pupil responses against a preset rubric to develop your understanding of the marking criteria.",
+        color: "from-green-600 to-green-800",
+      },
+      {
+        id: "review" as const,
+        icon: "🔍",
+        title: "Review",
+        desc: "Review your previous performance across topics and see detailed feedback on your strengths and gaps.",
+        color: "from-amber-600 to-amber-800",
+      },
+      {
+        id: "improve" as const,
+        icon: "🚀",
+        title: "Improve",
+        desc: "Targeted questions on your weakest topics to help you close gaps and boost your overall grade.",
+        color: "from-[#800000] to-[#600000]",
+      },
+    ]
+
+    return (
+      <div className="pt-24 min-h-screen flex flex-col items-center justify-center p-6 animate-in fade-in slide-in-from-right-4">
+        <div className="max-w-4xl w-full">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 text-slate-500 hover:text-[#800000] mb-8 font-bold uppercase text-xs tracking-widest"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Mode Selection
+          </button>
+          <div className="text-center mb-10">
+            <h2 className="text-4xl md:text-5xl font-black mb-3">
+              <span className="text-[#800000]">Assignment</span> Practice
+            </h2>
+            <p className={`text-lg ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}>
+              Choose your activity for{" "}
+              <span className="text-amber-600 font-bold">{selectedLevel}</span>
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-6">
+            {subModes.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => {
+                  setPhase(m.id)
+                  setCurrentQuestionIdx(0)
+                  setAnswers({})
+                  setSubmitted(false)
+                  setMarkingNotes({})
+                  setMarkScores({})
+                  setImproveAnswers({})
+                  setImproveSubmitted(false)
+                }}
+                className={`group text-left rounded-3xl border-2 p-7 transition-all hover:scale-[1.02] hover:shadow-2xl ${
+                  isDarkMode
+                    ? "bg-slate-800 border-slate-700 hover:border-slate-500"
+                    : "bg-white border-slate-200 hover:border-slate-300 shadow-lg"
+                }`}
+              >
+                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${m.color} flex items-center justify-center text-2xl mb-5 shadow-lg`}>
+                  {m.icon}
+                </div>
+                <h3 className="text-xl font-black mb-2">{m.title}</h3>
+                <p className={`text-sm leading-relaxed ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>{m.desc}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Practice ─────────────────────────────────────────────────────────────
+  if (phase === "practice") {
+    const q = practiceQuestions[currentQuestionIdx]
+    const isLast = currentQuestionIdx === practiceQuestions.length - 1
+
+    return (
+      <div className="pt-24 min-h-screen p-6 animate-in fade-in slide-in-from-right-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <button
+              onClick={() => setPhase("hub")}
+              className="flex items-center gap-1 text-slate-500 hover:text-[#800000] font-bold uppercase text-xs"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Hub
+            </button>
+            <span className={`text-sm font-bold ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+              Question {currentQuestionIdx + 1} / {practiceQuestions.length}
+            </span>
+          </div>
+
+          {/* Progress bar */}
+          <div className={`h-2 rounded-full mb-8 ${isDarkMode ? "bg-slate-700" : "bg-slate-200"}`}>
+            <div
+              className="h-full bg-[#800000] rounded-full transition-all"
+              style={{ width: `${((currentQuestionIdx + 1) / practiceQuestions.length) * 100}%` }}
+            />
+          </div>
+
+          <div className={`rounded-3xl border-2 p-8 mb-6 ${cardBase}`}>
+            {/* Guidance banner */}
+            <div className={`rounded-2xl p-4 mb-6 flex gap-3 ${isDarkMode ? "bg-blue-900/30 border border-blue-700" : "bg-blue-50 border border-blue-200"}`}>
+              <Lightbulb className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-1">Pupil Guidance</p>
+                <p className={`text-sm ${isDarkMode ? "text-blue-300" : "text-blue-700"}`}>{q.guidance}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 mb-4">
+              <span className={`px-3 py-1 rounded-full text-xs font-black ${isDarkMode ? "bg-slate-700 text-slate-300" : "bg-slate-100 text-slate-600"}`}>
+                {q.topic}
+              </span>
+              <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                {q.marks} marks
+              </span>
+            </div>
+
+            <p className="text-lg font-semibold leading-relaxed mb-6">{q.question}</p>
+
+            <textarea
+              value={answers[q.id] || ""}
+              onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+              placeholder="Write your answer here, showing all working..."
+              rows={5}
+              disabled={submitted}
+              className={`w-full rounded-2xl border-2 p-4 text-sm font-medium resize-none transition-colors focus:outline-none focus:ring-2 focus:ring-[#800000] ${
+                isDarkMode
+                  ? "bg-slate-700 border-slate-600 text-slate-100 placeholder-slate-400"
+                  : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"
+              } ${submitted ? "opacity-60" : ""}`}
+            />
+
+            {submitted && (
+              <div className={`mt-4 rounded-2xl p-4 ${isDarkMode ? "bg-green-900/30 border border-green-700" : "bg-green-50 border border-green-200"}`}>
+                <p className="text-xs font-black uppercase tracking-widest text-green-600 dark:text-green-400 mb-1">Mark Scheme</p>
+                <p className={`text-sm ${isDarkMode ? "text-green-300" : "text-green-700"}`}>{q.markScheme}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3">
+            {!submitted ? (
+              <button
+                onClick={() => setSubmitted(true)}
+                disabled={!answers[q.id]?.trim()}
+                className="flex-1 py-3 rounded-xl font-black bg-[#800000] text-white hover:bg-[#600000] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Check Answer
+              </button>
+            ) : isLast ? (
+              <button
+                onClick={() => setPhase("hub")}
+                className="flex-1 py-3 rounded-xl font-black bg-[#800000] text-white hover:bg-[#600000] transition-colors"
+              >
+                Finish Practice
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setCurrentQuestionIdx((i) => i + 1)
+                  setSubmitted(false)
+                }}
+                className="flex-1 py-3 rounded-xl font-black bg-[#800000] text-white hover:bg-[#600000] transition-colors"
+              >
+                Next Question →
+              </button>
+            )}
+            <button
+              onClick={() => { setPhase("hub"); setSubmitted(false) }}
+              className={`${btnOutline} ${isDarkMode ? "border-slate-600 hover:border-slate-400" : "border-slate-200 hover:border-slate-400"}`}
+            >
+              Hub
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Mark ─────────────────────────────────────────────────────────────────
+  if (phase === "mark") {
+    const totalAwarded = Object.values(markScores).reduce((a, b) => a + b, 0)
+    const totalAvailable = markingDocument.rubric.reduce((a, r) => a + r.maxMarks, 0)
+    const allMarked = markingDocument.rubric.every((r) => markScores[r.id] !== undefined)
+
+    return (
+      <div className="pt-24 min-h-screen p-6 animate-in fade-in slide-in-from-right-4">
+        <div className="max-w-3xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <button
+              onClick={() => setPhase("hub")}
+              className="flex items-center gap-1 text-slate-500 hover:text-[#800000] font-bold uppercase text-xs"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Hub
+            </button>
+            <span className={`text-sm font-bold ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+              Marking Task
+            </span>
+          </div>
+
+          <h2 className="text-2xl font-black mb-1">{markingDocument.title}</h2>
+          <p className={`text-sm mb-6 ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>{markingDocument.description}</p>
+
+          {/* Pupil response */}
+          <div className={`rounded-3xl border-2 p-6 mb-6 ${cardBase}`}>
+            <p className="text-xs font-black uppercase tracking-widest text-amber-600 mb-3">Pupil Response</p>
+            <pre className={`text-sm leading-relaxed whitespace-pre-wrap font-sans ${isDarkMode ? "text-slate-300" : "text-slate-700"}`}>
+              {markingDocument.pupilResponse}
+            </pre>
+          </div>
+
+          {/* Rubric */}
+          <div className={`rounded-3xl border-2 p-6 mb-6 ${cardBase}`}>
+            <p className="text-xs font-black uppercase tracking-widest text-[#800000] mb-4">Marking Rubric</p>
+            <div className="space-y-4">
+              {markingDocument.rubric.map((criterion) => (
+                <div key={criterion.id} className={`p-4 rounded-2xl border ${isDarkMode ? "border-slate-600 bg-slate-700/50" : "border-slate-100 bg-slate-50"}`}>
+                  <p className="text-sm font-semibold mb-3">{criterion.criterion}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {Array.from({ length: criterion.maxMarks + 1 }, (_, i) => i).map((v) => (
+                      <button
+                        key={v}
+                        onClick={() => setMarkScores((prev) => ({ ...prev, [criterion.id]: v }))}
+                        className={`w-10 h-10 rounded-xl font-black text-sm border-2 transition-all ${
+                          markScores[criterion.id] === v
+                            ? "bg-[#800000] text-white border-[#800000] scale-105"
+                            : isDarkMode
+                              ? "border-slate-600 hover:border-slate-400"
+                              : "border-slate-200 hover:border-[#800000]"
+                        }`}
+                      >
+                        {v}
+                      </button>
+                    ))}
+                    <span className={`self-center text-xs font-bold ml-1 ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                      / {criterion.maxMarks}
+                    </span>
+                  </div>
+                  {/* Notes field */}
+                  <input
+                    type="text"
+                    placeholder="Add a note (optional)..."
+                    value={markingNotes[criterion.id] || ""}
+                    onChange={(e) => setMarkingNotes((prev) => ({ ...prev, [criterion.id]: e.target.value }))}
+                    className={`mt-3 w-full rounded-xl border px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-[#800000] ${
+                      isDarkMode
+                        ? "bg-slate-600 border-slate-500 text-slate-200 placeholder-slate-400"
+                        : "bg-white border-slate-200 text-slate-700 placeholder-slate-400"
+                    }`}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Total & submit */}
+          <div className={`rounded-3xl border-2 p-6 mb-4 flex items-center justify-between ${cardBase}`}>
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-1">Total Awarded</p>
+              <p className="text-3xl font-black">
+                <span className="text-[#800000]">{totalAwarded}</span>
+                <span className={`text-lg ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}> / {totalAvailable}</span>
+              </p>
+            </div>
+            {allMarked && (
+              <div className={`px-4 py-2 rounded-xl text-sm font-black ${
+                totalAwarded >= totalAvailable * 0.7
+                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                  : totalAwarded >= totalAvailable * 0.5
+                    ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                    : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+              }`}>
+                {totalAwarded >= totalAvailable * 0.7 ? "Strong pass ✓" : totalAwarded >= totalAvailable * 0.5 ? "Borderline" : "Needs work"}
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => { setMarkScores({}); setMarkingNotes({}) }}
+              className={`${btnOutline} ${isDarkMode ? "border-slate-600 hover:border-slate-400" : "border-slate-200 hover:border-slate-400"}`}
+            >
+              Reset
+            </button>
+            <button
+              onClick={() => setPhase("hub")}
+              className="flex-1 py-3 rounded-xl font-black bg-[#800000] text-white hover:bg-[#600000] transition-colors"
+            >
+              Back to Hub
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Review ────────────────────────────────────────────────────────────────
+  if (phase === "review") {
+    return (
+      <div className="pt-24 min-h-screen p-6 animate-in fade-in slide-in-from-right-4">
+        <div className="max-w-3xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <button
+              onClick={() => setPhase("hub")}
+              className="flex items-center gap-1 text-slate-500 hover:text-[#800000] font-bold uppercase text-xs"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Hub
+            </button>
+            <span className={`text-sm font-bold ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+              Performance Review
+            </span>
+          </div>
+
+          <h2 className="text-2xl font-black mb-1">Review</h2>
+          <p className={`text-sm mb-6 ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+            Your recent topic performance for <span className="text-amber-600 font-bold">{selectedLevel}</span>. Use this to guide your next study session.
+          </p>
+
+          {/* Filter tabs */}
+          <div className={`inline-flex rounded-xl border p-1 mb-6 gap-1 ${isDarkMode ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-slate-100"}`}>
+            {(["all", "strong", "weak"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setReviewFilter(f)}
+                className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wide transition-all ${
+                  reviewFilter === f
+                    ? "bg-[#800000] text-white shadow"
+                    : isDarkMode
+                      ? "text-slate-400 hover:text-slate-200"
+                      : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {f === "all" ? "All Topics" : f === "strong" ? "Strong (≥70%)" : "Needs Work (<70%)"}
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-4">
+            {filteredReview.map((item) => {
+              const pct = item.score
+              return (
+                <div key={item.topic} className={`rounded-3xl border-2 p-6 ${cardBase}`}>
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="font-black text-lg">{item.topic}</h3>
+                      <p className={`text-xs ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>Last attempted: {item.lastAttempted}</p>
+                    </div>
+                    <span className={`text-2xl font-black ${perfColour(pct)}`}>{pct}%</span>
+                  </div>
+                  <div className={`h-2 rounded-full mb-4 ${isDarkMode ? "bg-slate-700" : "bg-slate-200"}`}>
+                    <div className={`h-full rounded-full transition-all ${perfBar(pct)}`} style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className={`rounded-xl p-3 flex gap-2 ${isDarkMode ? "bg-slate-700/50" : "bg-slate-50"}`}>
+                    <Lightbulb className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <p className={`text-sm ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}>{item.feedback}</p>
+                  </div>
+                </div>
+              )
+            })}
+            {filteredReview.length === 0 && (
+              <div className={`rounded-3xl border-2 p-10 text-center ${cardBase}`}>
+                <p className={`text-sm ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>No topics match this filter.</p>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-6">
+            <button
+              onClick={() => setPhase("hub")}
+              className={`w-full py-3 rounded-xl font-black border-2 transition-colors ${isDarkMode ? "border-slate-600 hover:border-slate-400" : "border-slate-200 hover:border-slate-400"}`}
+            >
+              Back to Hub
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Improve ───────────────────────────────────────────────────────────────
+  if (phase === "improve") {
+    const q = improveQuestions[currentQuestionIdx]
+    const isLast = currentQuestionIdx === improveQuestions.length - 1
+    const hasAnswered = improveAnswers[q.id] !== undefined
+    const isCorrect = improveAnswers[q.id] === q.answer
+
+    return (
+      <div className="pt-24 min-h-screen p-6 animate-in fade-in slide-in-from-right-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <button
+              onClick={() => setPhase("hub")}
+              className="flex items-center gap-1 text-slate-500 hover:text-[#800000] font-bold uppercase text-xs"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Hub
+            </button>
+            <span className={`text-sm font-bold ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+              Question {currentQuestionIdx + 1} / {improveQuestions.length}
+            </span>
+          </div>
+
+          {/* Progress bar */}
+          <div className={`h-2 rounded-full mb-8 ${isDarkMode ? "bg-slate-700" : "bg-slate-200"}`}>
+            <div
+              className="h-full bg-[#800000] rounded-full transition-all"
+              style={{ width: `${((currentQuestionIdx + 1) / improveQuestions.length) * 100}%` }}
+            />
+          </div>
+
+          <div className={`rounded-3xl border-2 p-8 mb-6 ${cardBase}`}>
+            <div className="flex items-center gap-2 mb-4">
+              <span className={`px-3 py-1 rounded-full text-xs font-black ${isDarkMode ? "bg-slate-700 text-slate-300" : "bg-slate-100 text-slate-600"}`}>
+                {q.topic}
+              </span>
+              <span className="px-3 py-1 rounded-full text-xs font-black bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                Needs Work
+              </span>
+            </div>
+
+            <p className="text-lg font-semibold leading-relaxed mb-6">{q.question}</p>
+
+            <div className="space-y-3">
+              {q.options.map((opt, idx) => {
+                let btnCls = `w-full text-left px-5 py-4 rounded-2xl border-2 font-semibold text-sm transition-all `
+                if (!hasAnswered) {
+                  btnCls += isDarkMode
+                    ? "border-slate-600 hover:border-slate-400 bg-slate-700/50"
+                    : "border-slate-200 hover:border-[#800000] bg-white"
+                } else if (idx === q.answer) {
+                  btnCls += "border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+                } else if (idx === improveAnswers[q.id]) {
+                  btnCls += "border-red-400 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300"
+                } else {
+                  btnCls += isDarkMode ? "border-slate-700 bg-slate-800/50 opacity-50" : "border-slate-100 bg-slate-50 opacity-50"
+                }
+                return (
+                  <button
+                    key={idx}
+                    disabled={hasAnswered}
+                    onClick={() => setImproveAnswers((prev) => ({ ...prev, [q.id]: idx }))}
+                    className={btnCls}
+                  >
+                    <span className="font-black mr-2">{String.fromCharCode(65 + idx)}.</span> {opt}
+                  </button>
+                )
+              })}
+            </div>
+
+            {hasAnswered && (
+              <div className={`mt-4 rounded-2xl p-4 ${
+                isCorrect
+                  ? isDarkMode ? "bg-green-900/30 border border-green-700" : "bg-green-50 border border-green-200"
+                  : isDarkMode ? "bg-red-900/30 border border-red-700" : "bg-red-50 border border-red-200"
+              }`}>
+                <p className={`text-xs font-black uppercase tracking-widest mb-1 ${isCorrect ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                  {isCorrect ? "Correct! ✓" : "Incorrect ✗"}
+                </p>
+                <p className={`text-sm ${isCorrect ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"}`}>{q.explanation}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3">
+            {improveSubmitted ? (
+              <button
+                onClick={() => setPhase("hub")}
+                className="flex-1 py-3 rounded-xl font-black bg-[#800000] text-white hover:bg-[#600000] transition-colors"
+              >
+                Back to Hub
+              </button>
+            ) : hasAnswered && isLast ? (
+              <button
+                onClick={() => setImproveSubmitted(true)}
+                className="flex-1 py-3 rounded-xl font-black bg-[#800000] text-white hover:bg-[#600000] transition-colors"
+              >
+                See Results
+              </button>
+            ) : hasAnswered ? (
+              <button
+                onClick={() => setCurrentQuestionIdx((i) => i + 1)}
+                className="flex-1 py-3 rounded-xl font-black bg-[#800000] text-white hover:bg-[#600000] transition-colors"
+              >
+                Next Question →
+              </button>
+            ) : null}
+            <button
+              onClick={() => setPhase("hub")}
+              className={`${btnOutline} ${isDarkMode ? "border-slate-600 hover:border-slate-400" : "border-slate-200 hover:border-slate-400"}`}
+            >
+              Hub
+            </button>
+          </div>
+
+          {improveSubmitted && (
+            <div className={`mt-6 rounded-3xl border-2 p-6 text-center ${cardBase}`}>
+              <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Session Complete</p>
+              <p className="text-4xl font-black mb-1">
+                <span className="text-[#800000]">{Object.values(improveAnswers).filter((a, i) => a === improveQuestions[i]?.answer).length}</span>
+                <span className={`text-xl ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}> / {improveQuestions.length}</span>
+              </p>
+              <p className={`text-sm ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>Keep practising your weak topics to improve your grade.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  return null
+}
+
 // --- Components ---
 
 function Navbar({
@@ -4263,6 +4907,8 @@ export default function App() {
       setView("definitions")
     } else if (mode === "calculations") {
       setView("calculations")
+    } else if (mode === "assignment") {
+      setView("assignment")
     } else {
       setView("setup")
     }
@@ -4473,6 +5119,13 @@ export default function App() {
         )}
         {view === "calculations" && (
           <CalculationsMode
+            selectedLevel={selectedLevel}
+            onBack={() => setView("mode")}
+            isDarkMode={isDarkMode}
+          />
+        )}
+        {view === "assignment" && (
+          <AssignmentMode
             selectedLevel={selectedLevel}
             onBack={() => setView("mode")}
             isDarkMode={isDarkMode}
