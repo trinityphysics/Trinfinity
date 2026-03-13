@@ -648,6 +648,9 @@ interface ExamProgress {
 
 interface CalcProgress {
   singleEq: Record<number, { correct: number; total: number }>
+  easyMode: Record<string, { correct: number; total: number }>
+  mediumMode: Record<string, { correct: number; total: number }>
+  hardMode: Record<string, { correct: number; total: number }>
   examLevel: { correct: number; total: number }
   correctMe: { correct: number; total: number }
 }
@@ -684,12 +687,30 @@ function saveUserExamProgress(userId: string, level: string, progress: ExamProgr
   } catch {}
 }
 
+const defaultCalcProgress = (): CalcProgress => ({
+  singleEq: {},
+  easyMode: {},
+  mediumMode: {},
+  hardMode: {},
+  examLevel: { correct: 0, total: 0 },
+  correctMe: { correct: 0, total: 0 },
+})
+
 function loadUserCalcProgress(userId: string, level: string): CalcProgress {
   try {
-    if (typeof window === "undefined") return { singleEq: {}, examLevel: { correct: 0, total: 0 }, correctMe: { correct: 0, total: 0 } }
+    if (typeof window === "undefined") return defaultCalcProgress()
     const saved = localStorage.getItem(`trinfinity_calc_progress_${userId}_${level}`)
-    return saved ? JSON.parse(saved) : { singleEq: {}, examLevel: { correct: 0, total: 0 }, correctMe: { correct: 0, total: 0 } }
-  } catch { return { singleEq: {}, examLevel: { correct: 0, total: 0 }, correctMe: { correct: 0, total: 0 } } }
+    if (!saved) return defaultCalcProgress()
+    const data = JSON.parse(saved)
+    return {
+      singleEq: data.singleEq ?? {},
+      easyMode: data.easyMode ?? {},
+      mediumMode: data.mediumMode ?? {},
+      hardMode: data.hardMode ?? {},
+      examLevel: data.examLevel ?? { correct: 0, total: 0 },
+      correctMe: data.correctMe ?? { correct: 0, total: 0 },
+    }
+  } catch { return defaultCalcProgress() }
 }
 
 function saveUserCalcProgress(userId: string, level: string, progress: CalcProgress): void {
@@ -2149,6 +2170,465 @@ const CALC_CORRECT_ME_QUESTIONS: CalcQuestion[] = [
   },
 ]
 
+// ─── SQA Relationship Sheet Equations ────────────────────────────────────────
+
+interface SQAEquation {
+  id: string
+  formula: string
+  description: string
+  topic: string
+  sqaLevel: "N5" | "Higher" | "AH"
+}
+
+const SQA_EQUATIONS: SQAEquation[] = [
+  // National 5 — Dynamics
+  { id: "d-vt",        formula: "d = vt",          description: "Distance, Speed and Time",                 topic: "Dynamics",    sqaLevel: "N5" },
+  { id: "v-uat",       formula: "v = u + at",       description: "Equations of Motion (v)",                  topic: "Dynamics",    sqaLevel: "N5" },
+  { id: "s-uat2",      formula: "s = ut + ½at²",    description: "Equations of Motion (s)",                  topic: "Dynamics",    sqaLevel: "N5" },
+  { id: "v2-uas",      formula: "v² = u² + 2as",    description: "Equations of Motion (v²)",                 topic: "Dynamics",    sqaLevel: "N5" },
+  { id: "F-ma",        formula: "F = ma",            description: "Newton's Second Law",                      topic: "Dynamics",    sqaLevel: "N5" },
+  { id: "W-mg",        formula: "W = mg",            description: "Weight",                                   topic: "Dynamics",    sqaLevel: "N5" },
+  // National 5 — Energy
+  { id: "Ek",          formula: "Ek = ½mv²",         description: "Kinetic Energy",                           topic: "Energy",      sqaLevel: "N5" },
+  { id: "Ep",          formula: "Ep = mgh",           description: "Gravitational Potential Energy",           topic: "Energy",      sqaLevel: "N5" },
+  { id: "P-Et",        formula: "P = E/t",            description: "Power",                                    topic: "Energy",      sqaLevel: "N5" },
+  { id: "Eh",          formula: "Eh = cmΔT",          description: "Heat Energy",                              topic: "Energy",      sqaLevel: "N5" },
+  // National 5 — Electricity
+  { id: "Q-It",        formula: "Q = It",             description: "Charge",                                   topic: "Electricity", sqaLevel: "N5" },
+  { id: "V-IR",        formula: "V = IR",             description: "Ohm's Law",                                topic: "Electricity", sqaLevel: "N5" },
+  { id: "P-IV",        formula: "P = IV",             description: "Electrical Power (P = IV)",                topic: "Electricity", sqaLevel: "N5" },
+  { id: "P-I2R",       formula: "P = I²R",            description: "Electrical Power (P = I²R)",               topic: "Electricity", sqaLevel: "N5" },
+  { id: "P-V2R",       formula: "P = V²/R",           description: "Electrical Power (P = V²/R)",              topic: "Electricity", sqaLevel: "N5" },
+  // National 5 — Waves
+  { id: "v-fl",        formula: "v = fλ",             description: "Wave Equation",                            topic: "Waves",       sqaLevel: "N5" },
+  { id: "T-1f",        formula: "T = 1/f",            description: "Period and Frequency",                     topic: "Waves",       sqaLevel: "N5" },
+  { id: "diffraction", formula: "d sinθ = mλ",        description: "Diffraction Grating",                      topic: "Waves",       sqaLevel: "N5" },
+  { id: "refraction",  formula: "n = sinθ₁ / sinθ₂", description: "Snell's Law",                              topic: "Waves",       sqaLevel: "N5" },
+  // National 5 — Gas Laws
+  { id: "temp-conv",   formula: "T(K) = T(°C) + 273", description: "Temperature Conversion",                  topic: "Gas Laws",    sqaLevel: "N5" },
+  { id: "gas-law",     formula: "p₁V₁/T₁ = p₂V₂/T₂", description: "Ideal Gas Law",                           topic: "Gas Laws",    sqaLevel: "N5" },
+  // Higher — Dynamics
+  { id: "F-kx",        formula: "F = kx",             description: "Hooke's Law (Spring Constant)",            topic: "Dynamics",    sqaLevel: "Higher" },
+  { id: "impulse",     formula: "Ft = mv − mu",       description: "Impulse and Change in Momentum",           topic: "Dynamics",    sqaLevel: "Higher" },
+  // Higher — Electricity
+  { id: "E-QV",        formula: "E = QV",             description: "Energy of Charged Particle",               topic: "Electricity", sqaLevel: "Higher" },
+  { id: "int-resist",  formula: "V = E − Ir",         description: "Internal Resistance",                      topic: "Electricity", sqaLevel: "Higher" },
+  // Higher — Waves & Radiation
+  { id: "E-hf",        formula: "E = hf",             description: "Photon Energy",                            topic: "Radiation",   sqaLevel: "Higher" },
+  { id: "photoelectric", formula: "Ek = hf − hf₀",   description: "Photoelectric Effect",                     topic: "Radiation",   sqaLevel: "Higher" },
+  { id: "irradiance",  formula: "I = P/A",            description: "Irradiance",                               topic: "Radiation",   sqaLevel: "Higher" },
+  // Higher — Space
+  { id: "mass-energy", formula: "E = mc²",            description: "Mass-Energy Equivalence",                  topic: "Space",       sqaLevel: "Higher" },
+  { id: "redshift",    formula: "z = Δλ/λ",           description: "Redshift",                                 topic: "Space",       sqaLevel: "Higher" },
+  { id: "hubble",      formula: "v = Hd",             description: "Hubble's Law",                             topic: "Space",       sqaLevel: "Higher" },
+  // Advanced Higher — Gravitation
+  { id: "gravity",     formula: "F = GMm/r²",         description: "Newton's Law of Gravitation",              topic: "Gravitation", sqaLevel: "AH" },
+  // Advanced Higher — Relativity
+  { id: "time-dilation",  formula: "t' = t / √(1 − v²/c²)", description: "Time Dilation",                    topic: "Relativity",  sqaLevel: "AH" },
+  { id: "len-contract",   formula: "l' = l√(1 − v²/c²)",    description: "Length Contraction",               topic: "Relativity",  sqaLevel: "AH" },
+]
+
+// ─── Per-equation question banks ─────────────────────────────────────────────
+
+const EQUATION_QUESTION_BANKS: Record<string, { easy: CalcQuestion[]; medium: CalcQuestion[]; hard: CalcQuestion[] }> = {
+
+  // ── F = ma ─────────────────────────────────────────────────────────────────
+  "F-ma": {
+    easy: [
+      { id: "Fma-e1", stem: "A 5 kg mass accelerates at 3 ms⁻². Calculate the resultant force.", equation: "F = ma", options: ["2 N", "15 N", "8 N", "0.6 N"], correctOption: 1, markScheme: "F = m × a = 5 × 3 = 15 N" },
+      { id: "Fma-e2", stem: "A force of 12 N acts on a mass of 4 kg. Calculate the acceleration.", equation: "F = ma  →  a = F ÷ m", options: ["48 ms⁻²", "8 ms⁻²", "3 ms⁻²", "0.33 ms⁻²"], correctOption: 2, markScheme: "a = F ÷ m = 12 ÷ 4 = 3 ms⁻²" },
+      { id: "Fma-e3", stem: "A force of 30 N gives an object an acceleration of 6 ms⁻². Calculate the mass.", equation: "F = ma  →  m = F ÷ a", options: ["0.2 kg", "5 kg", "36 kg", "180 kg"], correctOption: 1, markScheme: "m = F ÷ a = 30 ÷ 6 = 5 kg" },
+      { id: "Fma-e4", stem: "A 10 kg trolley accelerates at 2.5 ms⁻². Calculate the resultant force.", equation: "F = ma", options: ["25 N", "7.5 N", "4 N", "12.5 N"], correctOption: 0, markScheme: "F = 10 × 2.5 = 25 N" },
+    ],
+    medium: [
+      { id: "Fma-m1", stem: "A force of 12 N acts on a mass of 4 kg. Calculate the acceleration.", equation: "F = ma  →  a = F ÷ m", correctAnswer: "3 ms⁻²", markScheme: "a = F ÷ m = 12 ÷ 4 = 3 ms⁻²" },
+      { id: "Fma-m2", stem: "A 6 kg trolley accelerates at 2.5 ms⁻². Calculate the resultant force.", equation: "F = ma", correctAnswer: "15 N", markScheme: "F = 6 × 2.5 = 15 N" },
+      { id: "Fma-m3", stem: "A force of 45 N accelerates an object at 9 ms⁻². Calculate the mass.", equation: "F = ma  →  m = F ÷ a", correctAnswer: "5 kg", markScheme: "m = F ÷ a = 45 ÷ 9 = 5 kg" },
+      { id: "Fma-m4", stem: "A car of mass 1 250 kg accelerates at 3.6 ms⁻². Calculate the resultant force.", equation: "F = ma", correctAnswer: "4 500 N", markScheme: "F = 1 250 × 3.6 = 4 500 N" },
+    ],
+    hard: [
+      { id: "Fma-h1", stem: "An object of mass 850 g accelerates at 4.0 ms⁻². Calculate the resultant force.", equation: "F = ma", correctAnswer: "3.4 N", markScheme: "m = 850 g = 0.850 kg;  F = 0.850 × 4.0 = 3.4 N" },
+      { id: "Fma-h2", stem: "A force of 2.4 kN acts on an object of mass 800 kg. Calculate the acceleration.", equation: "F = ma  →  a = F ÷ m", correctAnswer: "3.0 ms⁻²", markScheme: "F = 2.4 kN = 2 400 N;  a = 2 400 ÷ 800 = 3.0 ms⁻²" },
+      { id: "Fma-h3", stem: "A car of mass 1.2 t accelerates from rest to 90 km/h in 10 s. Calculate the resultant force.", equation: "a = Δv ÷ t;  F = ma", correctAnswer: "3 000 N", markScheme: "m = 1.2 t = 1 200 kg;  v = 90 km/h = 25 ms⁻¹;  a = 25 ÷ 10 = 2.5 ms⁻²;  F = 1 200 × 2.5 = 3 000 N" },
+    ],
+  },
+
+  // ── W = mg ─────────────────────────────────────────────────────────────────
+  "W-mg": {
+    easy: [
+      { id: "Wmg-e1", stem: "An object has a mass of 5 kg. Calculate its weight on Earth. (g = 10 Nkg⁻¹)", equation: "W = mg", options: ["0.5 N", "2 N", "50 N", "500 N"], correctOption: 2, markScheme: "W = 5 × 10 = 50 N" },
+      { id: "Wmg-e2", stem: "An object weighs 60 N on Earth (g = 10 Nkg⁻¹). Calculate its mass.", equation: "W = mg  →  m = W ÷ g", options: ["6 kg", "600 kg", "0.17 kg", "70 kg"], correctOption: 0, markScheme: "m = W ÷ g = 60 ÷ 10 = 6 kg" },
+      { id: "Wmg-e3", stem: "An object of mass 4 kg is on the Moon (g = 1.6 Nkg⁻¹). Calculate its weight.", equation: "W = mg", options: ["2.5 N", "5.6 N", "6.4 N", "40 N"], correctOption: 2, markScheme: "W = 4 × 1.6 = 6.4 N" },
+      { id: "Wmg-e4", stem: "An object weighs 49 N on Earth (g = 9.8 Nkg⁻¹). Calculate its mass.", equation: "W = mg  →  m = W ÷ g", options: ["5 kg", "58.8 kg", "39.2 kg", "480 kg"], correctOption: 0, markScheme: "m = W ÷ g = 49 ÷ 9.8 = 5 kg" },
+    ],
+    medium: [
+      { id: "Wmg-m1", stem: "An object has a mass of 8 kg. Calculate its weight on Earth. (g = 9.8 Nkg⁻¹)", equation: "W = mg", correctAnswer: "78.4 N", markScheme: "W = 8 × 9.8 = 78.4 N" },
+      { id: "Wmg-m2", stem: "An object weighs 250 N on Earth (g = 9.8 Nkg⁻¹). Calculate its mass to 3 sig. figs.", equation: "W = mg  →  m = W ÷ g", correctAnswer: "25.5 kg", markScheme: "m = 250 ÷ 9.8 = 25.510... ≈ 25.5 kg" },
+      { id: "Wmg-m3", stem: "A 70 kg person stands on Mars (g = 3.7 Nkg⁻¹). Calculate their weight.", equation: "W = mg", correctAnswer: "259 N", markScheme: "W = 70 × 3.7 = 259 N" },
+    ],
+    hard: [
+      { id: "Wmg-h1", stem: "An object of mass 2.5 kg has a weight of 14.5 N on a planet. Calculate the gravitational field strength on that planet.", equation: "W = mg  →  g = W ÷ m", correctAnswer: "5.8 Nkg⁻¹", markScheme: "g = W ÷ m = 14.5 ÷ 2.5 = 5.8 Nkg⁻¹" },
+      { id: "Wmg-h2", stem: "A 500 g rock is on the Moon (g = 1.6 Nkg⁻¹). Calculate its weight.", equation: "W = mg", correctAnswer: "0.80 N", markScheme: "m = 500 g = 0.500 kg;  W = 0.500 × 1.6 = 0.80 N" },
+    ],
+  },
+
+  // ── v = fλ ─────────────────────────────────────────────────────────────────
+  "v-fl": {
+    easy: [
+      { id: "vfl-e1", stem: "A wave has frequency 50 Hz and wavelength 6 m. Calculate the wave speed.", equation: "v = fλ", options: ["8.3 ms⁻¹", "300 ms⁻¹", "56 ms⁻¹", "44 ms⁻¹"], correctOption: 1, markScheme: "v = f × λ = 50 × 6 = 300 ms⁻¹" },
+      { id: "vfl-e2", stem: "A wave travels at 300 ms⁻¹ with wavelength 6 m. Calculate the frequency.", equation: "v = fλ  →  f = v ÷ λ", options: ["1 800 Hz", "306 Hz", "50 Hz", "0.02 Hz"], correctOption: 2, markScheme: "f = v ÷ λ = 300 ÷ 6 = 50 Hz" },
+      { id: "vfl-e3", stem: "A wave has speed 340 ms⁻¹ and frequency 170 Hz. Calculate the wavelength.", equation: "v = fλ  →  λ = v ÷ f", options: ["510 m", "0.5 m", "2 m", "170 m"], correctOption: 2, markScheme: "λ = v ÷ f = 340 ÷ 170 = 2 m" },
+      { id: "vfl-e4", stem: "A sound wave has wavelength 0.4 m and speed 320 ms⁻¹. Calculate the frequency.", equation: "v = fλ  →  f = v ÷ λ", options: ["128 Hz", "800 Hz", "320.4 Hz", "80 Hz"], correctOption: 1, markScheme: "f = 320 ÷ 0.4 = 800 Hz" },
+    ],
+    medium: [
+      { id: "vfl-m1", stem: "A wave has frequency 200 Hz and wavelength 1.5 m. Calculate the wave speed.", equation: "v = fλ", correctAnswer: "300 ms⁻¹", markScheme: "v = 200 × 1.5 = 300 ms⁻¹" },
+      { id: "vfl-m2", stem: "Light travels at 3.0 × 10⁸ ms⁻¹ with wavelength 5.0 × 10⁻⁷ m. Calculate the frequency.", equation: "v = fλ  →  f = v ÷ λ", correctAnswer: "6.0 × 10¹⁴ Hz", markScheme: "f = 3.0×10⁸ ÷ 5.0×10⁻⁷ = 6.0×10¹⁴ Hz" },
+      { id: "vfl-m3", stem: "A wave has speed 3.4 × 10² ms⁻¹ and wavelength 0.034 m. Calculate the frequency.", equation: "v = fλ  →  f = v ÷ λ", correctAnswer: "1.0 × 10⁴ Hz", markScheme: "f = 340 ÷ 0.034 = 10 000 Hz = 1.0 × 10⁴ Hz" },
+      { id: "vfl-m4", stem: "A radio station broadcasts at 98 MHz (c = 3.0 × 10⁸ ms⁻¹). Calculate the wavelength.", equation: "v = fλ  →  λ = v ÷ f", correctAnswer: "3.1 m", markScheme: "f = 98×10⁶ Hz;  λ = 3.0×10⁸ ÷ 98×10⁶ = 3.06... ≈ 3.1 m" },
+    ],
+    hard: [
+      { id: "vfl-h1", stem: "A wave has frequency 2.5 kHz and speed 340 ms⁻¹. Calculate the wavelength.", equation: "v = fλ  →  λ = v ÷ f", correctAnswer: "0.136 m", markScheme: "f = 2.5 kHz = 2 500 Hz;  λ = 340 ÷ 2 500 = 0.136 m" },
+      { id: "vfl-h2", stem: "An X-ray photon has wavelength 0.10 nm. Calculate its frequency. (c = 3.0 × 10⁸ ms⁻¹)", equation: "v = fλ  →  f = v ÷ λ", correctAnswer: "3.0 × 10¹⁸ Hz", markScheme: "λ = 0.10 nm = 1.0×10⁻¹⁰ m;  f = 3.0×10⁸ ÷ 1.0×10⁻¹⁰ = 3.0×10¹⁸ Hz" },
+      { id: "vfl-h3", stem: "A microwave oven uses microwaves of wavelength 12 cm. (c = 3.0 × 10⁸ ms⁻¹). Calculate the frequency.", equation: "v = fλ  →  f = v ÷ λ", correctAnswer: "2.5 × 10⁹ Hz", markScheme: "λ = 12 cm = 0.12 m;  f = 3.0×10⁸ ÷ 0.12 = 2.5×10⁹ Hz" },
+    ],
+  },
+
+  // ── V = IR ─────────────────────────────────────────────────────────────────
+  "V-IR": {
+    easy: [
+      { id: "VIR-e1", stem: "A resistor has a resistance of 5 Ω and carries a current of 2 A. Calculate the voltage across it.", equation: "V = IR", options: ["7 V", "10 V", "2.5 V", "3 V"], correctOption: 1, markScheme: "V = I × R = 2 × 5 = 10 V" },
+      { id: "VIR-e2", stem: "A voltage of 12 V is applied across a 3 Ω resistor. Calculate the current.", equation: "V = IR  →  I = V ÷ R", options: ["36 A", "15 A", "0.25 A", "4 A"], correctOption: 3, markScheme: "I = V ÷ R = 12 ÷ 3 = 4 A" },
+      { id: "VIR-e3", stem: "A current of 3 A flows through a resistor with a voltage of 24 V across it. Calculate the resistance.", equation: "V = IR  →  R = V ÷ I", options: ["72 Ω", "8 Ω", "21 Ω", "0.125 Ω"], correctOption: 1, markScheme: "R = V ÷ I = 24 ÷ 3 = 8 Ω" },
+      { id: "VIR-e4", stem: "A 10 Ω resistor is connected to a 5 A supply. Calculate the voltage across it.", equation: "V = IR", options: ["0.5 V", "50 V", "15 V", "2 V"], correctOption: 1, markScheme: "V = 5 × 10 = 50 V" },
+    ],
+    medium: [
+      { id: "VIR-m1", stem: "A resistor has resistance 8 Ω. A current of 2.5 A flows through it. Calculate the voltage.", equation: "V = IR", correctAnswer: "20 V", markScheme: "V = 2.5 × 8 = 20 V" },
+      { id: "VIR-m2", stem: "A 9 V battery is connected to a 180 Ω resistor. Calculate the current.", equation: "V = IR  →  I = V ÷ R", correctAnswer: "0.050 A", markScheme: "I = 9 ÷ 180 = 0.050 A (50 mA)" },
+      { id: "VIR-m3", stem: "A current of 0.25 A flows through a resistor when a 6 V source is connected. Calculate the resistance.", equation: "V = IR  →  R = V ÷ I", correctAnswer: "24 Ω", markScheme: "R = V ÷ I = 6 ÷ 0.25 = 24 Ω" },
+      { id: "VIR-m4", stem: "A circuit draws a current of 1.5 A from a 12 V supply. Calculate the resistance of the circuit.", equation: "V = IR  →  R = V ÷ I", correctAnswer: "8 Ω", markScheme: "R = 12 ÷ 1.5 = 8 Ω" },
+    ],
+    hard: [
+      { id: "VIR-h1", stem: "A resistor has a voltage of 12 V across it and a current of 40 mA. Calculate the resistance.", equation: "V = IR  →  R = V ÷ I", correctAnswer: "300 Ω", markScheme: "I = 40 mA = 0.040 A;  R = 12 ÷ 0.040 = 300 Ω" },
+      { id: "VIR-h2", stem: "A current of 5.0 mA flows through a 2.2 kΩ resistor. Calculate the voltage across it.", equation: "V = IR", correctAnswer: "11 V", markScheme: "I = 0.0050 A;  R = 2 200 Ω;  V = 0.0050 × 2 200 = 11 V" },
+      { id: "VIR-h3", stem: "A 6 V battery drives a current of 4.0 mA through a resistor. Calculate the resistance.", equation: "V = IR  →  R = V ÷ I", correctAnswer: "1 500 Ω", markScheme: "I = 4.0 mA = 0.0040 A;  R = 6 ÷ 0.0040 = 1 500 Ω (1.5 kΩ)" },
+    ],
+  },
+
+  // ── Q = It ─────────────────────────────────────────────────────────────────
+  "Q-It": {
+    easy: [
+      { id: "QIt-e1", stem: "A current of 2 A flows for 5 s. Calculate the charge transferred.", equation: "Q = It", options: ["0.4 C", "7 C", "10 C", "3 C"], correctOption: 2, markScheme: "Q = I × t = 2 × 5 = 10 C" },
+      { id: "QIt-e2", stem: "A charge of 30 C flows through a wire in 6 s. Calculate the current.", equation: "Q = It  →  I = Q ÷ t", options: ["24 A", "36 A", "5 A", "180 A"], correctOption: 2, markScheme: "I = Q ÷ t = 30 ÷ 6 = 5 A" },
+      { id: "QIt-e3", stem: "A current of 3 A transfers 24 C of charge. Calculate the time taken.", equation: "Q = It  →  t = Q ÷ I", options: ["72 s", "8 s", "21 s", "0.125 s"], correctOption: 1, markScheme: "t = Q ÷ I = 24 ÷ 3 = 8 s" },
+      { id: "QIt-e4", stem: "A charge of 40 C flows in 8 s. Calculate the current.", equation: "Q = It  →  I = Q ÷ t", options: ["320 A", "48 A", "5 A", "32 A"], correctOption: 2, markScheme: "I = 40 ÷ 8 = 5 A" },
+    ],
+    medium: [
+      { id: "QIt-m1", stem: "A current of 0.5 A flows for 20 s. Calculate the charge transferred.", equation: "Q = It", correctAnswer: "10 C", markScheme: "Q = 0.5 × 20 = 10 C" },
+      { id: "QIt-m2", stem: "A charge of 180 C is transferred in 2 minutes. Calculate the current.", equation: "Q = It  →  I = Q ÷ t", correctAnswer: "1.5 A", markScheme: "t = 2 × 60 = 120 s;  I = 180 ÷ 120 = 1.5 A" },
+      { id: "QIt-m3", stem: "A current of 0.25 A flows until 15 C of charge has been transferred. Calculate the time.", equation: "Q = It  →  t = Q ÷ I", correctAnswer: "60 s", markScheme: "t = Q ÷ I = 15 ÷ 0.25 = 60 s" },
+    ],
+    hard: [
+      { id: "QIt-h1", stem: "A current of 40 mA flows for 5 minutes. Calculate the charge transferred.", equation: "Q = It", correctAnswer: "12 C", markScheme: "I = 40 mA = 0.040 A;  t = 5 × 60 = 300 s;  Q = 0.040 × 300 = 12 C" },
+      { id: "QIt-h2", stem: "A charge of 600 mC is transferred in 30 s. Calculate the current in mA.", equation: "Q = It  →  I = Q ÷ t", correctAnswer: "20 mA", markScheme: "Q = 0.600 C;  I = 0.600 ÷ 30 = 0.020 A = 20 mA" },
+    ],
+  },
+
+  // ── P = IV ─────────────────────────────────────────────────────────────────
+  "P-IV": {
+    easy: [
+      { id: "PIV-e1", stem: "A bulb has a current of 2 A and a voltage of 6 V. Calculate the power.", equation: "P = IV", options: ["4 W", "12 W", "8 W", "3 W"], correctOption: 1, markScheme: "P = I × V = 2 × 6 = 12 W" },
+      { id: "PIV-e2", stem: "A device uses 30 W of power and draws a current of 5 A. Calculate the voltage.", equation: "P = IV  →  V = P ÷ I", options: ["150 V", "6 V", "25 V", "35 V"], correctOption: 1, markScheme: "V = P ÷ I = 30 ÷ 5 = 6 V" },
+      { id: "PIV-e3", stem: "A kettle operates at 230 V and uses 1 150 W. Calculate the current.", equation: "P = IV  →  I = P ÷ V", options: ["264 500 A", "5 A", "920 A", "0.2 A"], correctOption: 1, markScheme: "I = P ÷ V = 1 150 ÷ 230 = 5 A" },
+    ],
+    medium: [
+      { id: "PIV-m1", stem: "An electric motor draws a current of 3.5 A at 12 V. Calculate its power.", equation: "P = IV", correctAnswer: "42 W", markScheme: "P = 3.5 × 12 = 42 W" },
+      { id: "PIV-m2", stem: "A hairdryer has a power of 1 500 W and operates on a 230 V supply. Calculate the current.", equation: "P = IV  →  I = P ÷ V", correctAnswer: "6.52 A", markScheme: "I = 1 500 ÷ 230 = 6.52 A (3 sig. figs.)" },
+      { id: "PIV-m3", stem: "A lamp operates at 2.4 A and dissipates 60 W. Calculate the voltage across the lamp.", equation: "P = IV  →  V = P ÷ I", correctAnswer: "25 V", markScheme: "V = P ÷ I = 60 ÷ 2.4 = 25 V" },
+    ],
+    hard: [
+      { id: "PIV-h1", stem: "A device draws 250 mA from a 12 V supply. Calculate its power.", equation: "P = IV", correctAnswer: "3.0 W", markScheme: "I = 250 mA = 0.250 A;  P = 0.250 × 12 = 3.0 W" },
+      { id: "PIV-h2", stem: "A motor has a power of 3.6 kW and operates at 230 V. Calculate the current to 3 significant figures.", equation: "P = IV  →  I = P ÷ V", correctAnswer: "15.7 A", markScheme: "P = 3 600 W;  I = 3 600 ÷ 230 = 15.65... ≈ 15.7 A" },
+    ],
+  },
+
+  // ── P = E/t ────────────────────────────────────────────────────────────────
+  "P-Et": {
+    easy: [
+      { id: "PEt-e1", stem: "A device transfers 60 J of energy in 5 s. Calculate the power.", equation: "P = E/t", options: ["300 W", "12 W", "65 W", "55 W"], correctOption: 1, markScheme: "P = E ÷ t = 60 ÷ 5 = 12 W" },
+      { id: "PEt-e2", stem: "A 40 W lamp is left on for 10 s. Calculate the energy transferred.", equation: "P = E/t  →  E = Pt", options: ["4 J", "50 J", "400 J", "30 J"], correctOption: 2, markScheme: "E = P × t = 40 × 10 = 400 J" },
+      { id: "PEt-e3", stem: "A 100 W motor transfers 500 J of energy. Calculate the time taken.", equation: "P = E/t  →  t = E ÷ P", options: ["50 000 s", "5 s", "600 s", "0.2 s"], correctOption: 1, markScheme: "t = E ÷ P = 500 ÷ 100 = 5 s" },
+      { id: "PEt-e4", stem: "An engine produces 2 000 J of work in 8 s. Calculate its power.", equation: "P = E/t", options: ["16 000 W", "250 W", "1 992 W", "2 008 W"], correctOption: 1, markScheme: "P = 2 000 ÷ 8 = 250 W" },
+    ],
+    medium: [
+      { id: "PEt-m1", stem: "A 1 200 W microwave runs for 3.5 minutes. Calculate the energy transferred.", equation: "P = E/t  →  E = Pt", correctAnswer: "252 000 J", markScheme: "t = 3.5 × 60 = 210 s;  E = 1 200 × 210 = 252 000 J" },
+      { id: "PEt-m2", stem: "A motor transfers 45 000 J of energy in 3 minutes. Calculate the power.", equation: "P = E/t", correctAnswer: "250 W", markScheme: "t = 3 × 60 = 180 s;  P = 45 000 ÷ 180 = 250 W" },
+      { id: "PEt-m3", stem: "A 75 W device is left on for 2 hours. Calculate the energy transferred in joules.", equation: "P = E/t  →  E = Pt", correctAnswer: "540 000 J", markScheme: "t = 2 × 3 600 = 7 200 s;  E = 75 × 7 200 = 540 000 J" },
+    ],
+    hard: [
+      { id: "PEt-h1", stem: "A pump transfers 1.8 MJ of energy in 30 minutes. Calculate the power.", equation: "P = E/t", correctAnswer: "1 000 W", markScheme: "E = 1.8×10⁶ J;  t = 30 × 60 = 1 800 s;  P = 1.8×10⁶ ÷ 1 800 = 1 000 W (1 kW)" },
+      { id: "PEt-h2", stem: "A 2.5 kW water heater runs for 12 minutes. Calculate the energy transferred in MJ.", equation: "P = E/t  →  E = Pt", correctAnswer: "1.8 MJ", markScheme: "P = 2 500 W;  t = 12 × 60 = 720 s;  E = 2 500 × 720 = 1 800 000 J = 1.8 MJ" },
+    ],
+  },
+
+  // ── d = vt ─────────────────────────────────────────────────────────────────
+  "d-vt": {
+    easy: [
+      { id: "dvt-e1", stem: "An object travels at 5 ms⁻¹ for 10 s. Calculate the distance.", equation: "d = vt", options: ["2 m", "15 m", "50 m", "0.5 m"], correctOption: 2, markScheme: "d = v × t = 5 × 10 = 50 m" },
+      { id: "dvt-e2", stem: "A car travels 120 m in 6 s. Calculate its average speed.", equation: "d = vt  →  v = d ÷ t", options: ["720 ms⁻¹", "20 ms⁻¹", "114 ms⁻¹", "126 ms⁻¹"], correctOption: 1, markScheme: "v = d ÷ t = 120 ÷ 6 = 20 ms⁻¹" },
+      { id: "dvt-e3", stem: "A cyclist travels at 8 ms⁻¹ and covers 56 m. Calculate the time taken.", equation: "d = vt  →  t = d ÷ v", options: ["448 s", "7 s", "64 s", "48 s"], correctOption: 1, markScheme: "t = d ÷ v = 56 ÷ 8 = 7 s" },
+      { id: "dvt-e4", stem: "A train travels at 25 ms⁻¹ for 4 s. Calculate the distance.", equation: "d = vt", options: ["6.25 m", "29 m", "21 m", "100 m"], correctOption: 3, markScheme: "d = 25 × 4 = 100 m" },
+    ],
+    medium: [
+      { id: "dvt-m1", stem: "A car travels at 30 ms⁻¹ for 25 s. Calculate the distance.", equation: "d = vt", correctAnswer: "750 m", markScheme: "d = 30 × 25 = 750 m" },
+      { id: "dvt-m2", stem: "A signal travels 1.5 × 10⁸ m in 0.5 s. Calculate its speed.", equation: "d = vt  →  v = d ÷ t", correctAnswer: "3.0 × 10⁸ ms⁻¹", markScheme: "v = 1.5×10⁸ ÷ 0.5 = 3.0×10⁸ ms⁻¹" },
+      { id: "dvt-m3", stem: "Sound travels at 340 ms⁻¹. How long does it take to travel 1.02 km?", equation: "d = vt  →  t = d ÷ v", correctAnswer: "3.0 s", markScheme: "d = 1 020 m;  t = 1 020 ÷ 340 = 3.0 s" },
+    ],
+    hard: [
+      { id: "dvt-h1", stem: "A car travels at 72 km/h for 15 minutes. Calculate the distance in metres.", equation: "d = vt", correctAnswer: "18 000 m", markScheme: "v = 72 km/h = 20 ms⁻¹;  t = 15 × 60 = 900 s;  d = 20 × 900 = 18 000 m" },
+      { id: "dvt-h2", stem: "A train covers 4.5 km in 90 s. Calculate its speed in ms⁻¹.", equation: "d = vt  →  v = d ÷ t", correctAnswer: "50 ms⁻¹", markScheme: "d = 4 500 m;  v = 4 500 ÷ 90 = 50 ms⁻¹" },
+      { id: "dvt-h3", stem: "A probe travels at 1.5 × 10⁴ ms⁻¹ for 2.0 hours. Calculate the distance in km.", equation: "d = vt", correctAnswer: "1.08 × 10⁵ km", markScheme: "t = 2.0 × 3 600 = 7 200 s;  d = 1.5×10⁴ × 7 200 = 1.08×10⁸ m = 1.08×10⁵ km" },
+    ],
+  },
+
+  // ── Ek = ½mv² ──────────────────────────────────────────────────────────────
+  "Ek": {
+    easy: [
+      { id: "Ek-e1", stem: "A 2 kg ball moves at 4 ms⁻¹. Calculate its kinetic energy.", equation: "Ek = ½mv²", options: ["8 J", "16 J", "4 J", "32 J"], correctOption: 1, markScheme: "Ek = ½ × 2 × 4² = ½ × 2 × 16 = 16 J" },
+      { id: "Ek-e2", stem: "An object has kinetic energy of 50 J and a mass of 4 kg. Calculate its speed.", equation: "Ek = ½mv²  →  v = √(2Ek ÷ m)", options: ["25 ms⁻¹", "5 ms⁻¹", "6.25 ms⁻¹", "100 ms⁻¹"], correctOption: 1, markScheme: "v = √(2×50 ÷ 4) = √25 = 5 ms⁻¹" },
+      { id: "Ek-e3", stem: "A 10 kg trolley moves at 3 ms⁻¹. Calculate its kinetic energy.", equation: "Ek = ½mv²", options: ["30 J", "15 J", "45 J", "90 J"], correctOption: 2, markScheme: "Ek = ½ × 10 × 9 = 45 J" },
+    ],
+    medium: [
+      { id: "Ek-m1", stem: "A 1 200 kg car moves at 15 ms⁻¹. Calculate its kinetic energy.", equation: "Ek = ½mv²", correctAnswer: "135 000 J", markScheme: "Ek = ½ × 1 200 × 15² = ½ × 1 200 × 225 = 135 000 J" },
+      { id: "Ek-m2", stem: "A 0.5 kg ball has kinetic energy of 36 J. Calculate its speed.", equation: "Ek = ½mv²  →  v = √(2Ek ÷ m)", correctAnswer: "12 ms⁻¹", markScheme: "v = √(2×36 ÷ 0.5) = √144 = 12 ms⁻¹" },
+      { id: "Ek-m3", stem: "A 2 500 kg van moves at 20 ms⁻¹. Calculate its kinetic energy.", equation: "Ek = ½mv²", correctAnswer: "500 000 J", markScheme: "Ek = ½ × 2 500 × 400 = 500 000 J" },
+    ],
+    hard: [
+      { id: "Ek-h1", stem: "A 1.2 t car travels at 72 km/h. Calculate its kinetic energy.", equation: "Ek = ½mv²", correctAnswer: "240 000 J", markScheme: "m = 1 200 kg;  v = 72 km/h = 20 ms⁻¹;  Ek = ½ × 1 200 × 400 = 240 000 J" },
+      { id: "Ek-h2", stem: "A 500 g ball has kinetic energy of 90 J. Calculate its speed.", equation: "Ek = ½mv²  →  v = √(2Ek ÷ m)", correctAnswer: "19.0 ms⁻¹", markScheme: "m = 0.500 kg;  v = √(2×90 ÷ 0.500) = √360 ≈ 19.0 ms⁻¹" },
+    ],
+  },
+
+  // ── Ep = mgh ───────────────────────────────────────────────────────────────
+  "Ep": {
+    easy: [
+      { id: "Ep-e1", stem: "A 3 kg ball is raised 5 m above the ground. (g = 10 Nkg⁻¹) Calculate the gravitational PE.", equation: "Ep = mgh", options: ["0.06 J", "150 J", "8 J", "53 J"], correctOption: 1, markScheme: "Ep = m × g × h = 3 × 10 × 5 = 150 J" },
+      { id: "Ep-e2", stem: "An object has GPE of 200 J when raised 4 m. (g = 10 Nkg⁻¹) Calculate the mass.", equation: "Ep = mgh  →  m = Ep ÷ (gh)", options: ["800 kg", "5 kg", "0.2 kg", "40 kg"], correctOption: 1, markScheme: "m = 200 ÷ (10 × 4) = 200 ÷ 40 = 5 kg" },
+      { id: "Ep-e3", stem: "A 2 kg object has 40 J of GPE. (g = 10 Nkg⁻¹) Calculate the height above the ground.", equation: "Ep = mgh  →  h = Ep ÷ (mg)", options: ["800 m", "2 m", "0.5 m", "200 m"], correctOption: 1, markScheme: "h = 40 ÷ (2 × 10) = 40 ÷ 20 = 2 m" },
+    ],
+    medium: [
+      { id: "Ep-m1", stem: "A 70 kg person climbs to a height of 15 m. (g = 9.8 Nkg⁻¹) Calculate the gain in GPE.", equation: "Ep = mgh", correctAnswer: "10 290 J", markScheme: "Ep = 70 × 9.8 × 15 = 10 290 J" },
+      { id: "Ep-m2", stem: "A ball of mass 0.50 kg is dropped from a height of 20 m. (g = 9.8 Nkg⁻¹) Calculate the GPE at the start.", equation: "Ep = mgh", correctAnswer: "98 J", markScheme: "Ep = 0.50 × 9.8 × 20 = 98 J" },
+      { id: "Ep-m3", stem: "An object has GPE of 588 J at a height of 3.0 m. (g = 9.8 Nkg⁻¹) Calculate the mass.", equation: "Ep = mgh  →  m = Ep ÷ (gh)", correctAnswer: "20 kg", markScheme: "m = 588 ÷ (9.8 × 3) = 588 ÷ 29.4 = 20 kg" },
+    ],
+    hard: [
+      { id: "Ep-h1", stem: "A 750 g ball is raised to a height of 1.2 m. (g = 9.8 Nkg⁻¹) Calculate its GPE.", equation: "Ep = mgh", correctAnswer: "8.82 J", markScheme: "m = 0.750 kg;  Ep = 0.750 × 9.8 × 1.2 = 8.82 J" },
+      { id: "Ep-h2", stem: "A 2.5 kJ of GPE is stored in a 50 kg object on a planet with g = 5.0 Nkg⁻¹. Calculate the height.", equation: "Ep = mgh  →  h = Ep ÷ (mg)", correctAnswer: "10 m", markScheme: "Ep = 2 500 J;  h = 2 500 ÷ (50 × 5.0) = 2 500 ÷ 250 = 10 m" },
+    ],
+  },
+
+  // ── v = u + at ─────────────────────────────────────────────────────────────
+  "v-uat": {
+    easy: [
+      { id: "vuat-e1", stem: "A car starts from rest (u = 0) and accelerates at 3 ms⁻² for 5 s. Calculate its final velocity.", equation: "v = u + at", options: ["2 ms⁻¹", "8 ms⁻¹", "15 ms⁻¹", "35 ms⁻¹"], correctOption: 2, markScheme: "v = 0 + 3 × 5 = 15 ms⁻¹" },
+      { id: "vuat-e2", stem: "An object decelerates from 20 ms⁻¹ at −4 ms⁻² for 3 s. Calculate its final velocity.", equation: "v = u + at", options: ["8 ms⁻¹", "32 ms⁻¹", "17 ms⁻¹", "−12 ms⁻¹"], correctOption: 0, markScheme: "v = 20 + (−4) × 3 = 20 − 12 = 8 ms⁻¹" },
+      { id: "vuat-e3", stem: "An object accelerates from 5 ms⁻¹ to 25 ms⁻¹ in 4 s. Calculate the acceleration.", equation: "v = u + at  →  a = (v − u) ÷ t", options: ["0.2 ms⁻²", "5 ms⁻²", "7.5 ms⁻²", "30 ms⁻²"], correctOption: 1, markScheme: "a = (25 − 5) ÷ 4 = 20 ÷ 4 = 5 ms⁻²" },
+    ],
+    medium: [
+      { id: "vuat-m1", stem: "A train starts from rest and accelerates at 0.8 ms⁻² for 30 s. Calculate its final speed.", equation: "v = u + at", correctAnswer: "24 ms⁻¹", markScheme: "v = 0 + 0.8 × 30 = 24 ms⁻¹" },
+      { id: "vuat-m2", stem: "A ball is thrown upwards at 15 ms⁻¹. (g = −9.8 ms⁻²) Calculate the velocity after 1.5 s.", equation: "v = u + at", correctAnswer: "0.3 ms⁻¹", markScheme: "v = 15 + (−9.8) × 1.5 = 15 − 14.7 = 0.3 ms⁻¹" },
+      { id: "vuat-m3", stem: "A car slows from 30 ms⁻¹ to 10 ms⁻¹ in 5.0 s. Calculate the deceleration.", equation: "v = u + at  →  a = (v − u) ÷ t", correctAnswer: "−4.0 ms⁻²", markScheme: "a = (10 − 30) ÷ 5 = −20 ÷ 5 = −4.0 ms⁻²" },
+    ],
+    hard: [
+      { id: "vuat-h1", stem: "A car accelerates from 18 km/h to 90 km/h in 8.0 s. Calculate the acceleration.", equation: "v = u + at  →  a = (v − u) ÷ t", correctAnswer: "2.5 ms⁻²", markScheme: "u = 18 km/h = 5 ms⁻¹;  v = 90 km/h = 25 ms⁻¹;  a = (25 − 5) ÷ 8 = 2.5 ms⁻²" },
+      { id: "vuat-h2", stem: "A ball is dropped from rest near Earth (g = 9.8 ms⁻²). Calculate its speed after falling for 2.5 s.", equation: "v = u + at", correctAnswer: "24.5 ms⁻¹", markScheme: "v = 0 + 9.8 × 2.5 = 24.5 ms⁻¹" },
+    ],
+  },
+
+  // ── T = 1/f ────────────────────────────────────────────────────────────────
+  "T-1f": {
+    easy: [
+      { id: "T1f-e1", stem: "A wave has frequency 5 Hz. Calculate its period.", equation: "T = 1/f", options: ["5 s", "0.2 s", "0.5 s", "25 s"], correctOption: 1, markScheme: "T = 1 ÷ 5 = 0.2 s" },
+      { id: "T1f-e2", stem: "A wave has period 0.25 s. Calculate its frequency.", equation: "T = 1/f  →  f = 1 ÷ T", options: ["4 Hz", "0.25 Hz", "25 Hz", "0.04 Hz"], correctOption: 0, markScheme: "f = 1 ÷ 0.25 = 4 Hz" },
+      { id: "T1f-e3", stem: "A wave has frequency 20 Hz. Calculate its period.", equation: "T = 1/f", options: ["20 s", "0.05 s", "0.5 s", "200 s"], correctOption: 1, markScheme: "T = 1 ÷ 20 = 0.05 s" },
+      { id: "T1f-e4", stem: "A pendulum has period 2 s. Calculate its frequency.", equation: "T = 1/f  →  f = 1 ÷ T", options: ["0.5 Hz", "2 Hz", "4 Hz", "0.25 Hz"], correctOption: 0, markScheme: "f = 1 ÷ 2 = 0.5 Hz" },
+    ],
+    medium: [
+      { id: "T1f-m1", stem: "A wave has frequency 250 Hz. Calculate its period.", equation: "T = 1/f", correctAnswer: "0.004 s", markScheme: "T = 1 ÷ 250 = 0.004 s (4 ms)" },
+      { id: "T1f-m2", stem: "A sound wave has period 0.0025 s. Calculate its frequency.", equation: "T = 1/f  →  f = 1 ÷ T", correctAnswer: "400 Hz", markScheme: "f = 1 ÷ 0.0025 = 400 Hz" },
+      { id: "T1f-m3", stem: "A light wave has frequency 6.0 × 10¹⁴ Hz. Calculate its period.", equation: "T = 1/f", correctAnswer: "1.67 × 10⁻¹⁵ s", markScheme: "T = 1 ÷ 6.0×10¹⁴ = 1.67×10⁻¹⁵ s" },
+    ],
+    hard: [
+      { id: "T1f-h1", stem: "A wave has frequency 5.0 kHz. Calculate its period.", equation: "T = 1/f", correctAnswer: "0.20 ms", markScheme: "f = 5 000 Hz;  T = 1 ÷ 5 000 = 2.0×10⁻⁴ s = 0.20 ms" },
+      { id: "T1f-h2", stem: "A microwave has period 1.25 ns. Calculate its frequency.", equation: "T = 1/f  →  f = 1 ÷ T", correctAnswer: "8.0 × 10⁸ Hz", markScheme: "T = 1.25×10⁻⁹ s;  f = 1 ÷ 1.25×10⁻⁹ = 8.0×10⁸ Hz (800 MHz)" },
+    ],
+  },
+
+  // ── Eh = cmΔT ──────────────────────────────────────────────────────────────
+  "Eh": {
+    easy: [
+      { id: "Eh-e1", stem: "Calculate the heat energy needed to raise 2 kg of water by 5 °C. (c = 4 200 Jkg⁻¹°C⁻¹)", equation: "Eh = cmΔT", options: ["42 000 J", "8 400 J", "2 100 J", "100 800 J"], correctOption: 0, markScheme: "Eh = 4 200 × 2 × 5 = 42 000 J" },
+      { id: "Eh-e2", stem: "800 J of heat energy raises the temperature of 0.5 kg of a substance by 4 °C. Calculate the specific heat capacity.", equation: "Eh = cmΔT  →  c = Eh ÷ (mΔT)", options: ["400 Jkg⁻¹°C⁻¹", "1 600 Jkg⁻¹°C⁻¹", "6 400 Jkg⁻¹°C⁻¹", "100 Jkg⁻¹°C⁻¹"], correctOption: 0, markScheme: "c = 800 ÷ (0.5 × 4) = 800 ÷ 2 = 400 Jkg⁻¹°C⁻¹" },
+      { id: "Eh-e3", stem: "5 040 J of energy heats 1.2 kg of water. (c = 4 200 Jkg⁻¹°C⁻¹) Calculate the temperature rise.", equation: "Eh = cmΔT  →  ΔT = Eh ÷ (cm)", options: ["1 °C", "25 200 °C", "4 °C", "10 °C"], correctOption: 0, markScheme: "ΔT = 5 040 ÷ (4 200 × 1.2) = 5 040 ÷ 5 040 = 1 °C" },
+    ],
+    medium: [
+      { id: "Eh-m1", stem: "Calculate the heat energy needed to raise 3 kg of copper by 20 °C. (c = 385 Jkg⁻¹°C⁻¹)", equation: "Eh = cmΔT", correctAnswer: "23 100 J", markScheme: "Eh = 385 × 3 × 20 = 23 100 J" },
+      { id: "Eh-m2", stem: "A 2 kg block of aluminium absorbs 90 000 J. (c = 900 Jkg⁻¹°C⁻¹) Calculate the temperature rise.", equation: "Eh = cmΔT  →  ΔT = Eh ÷ (cm)", correctAnswer: "50 °C", markScheme: "ΔT = 90 000 ÷ (900 × 2) = 90 000 ÷ 1 800 = 50 °C" },
+      { id: "Eh-m3", stem: "A 500 g sample is heated by 4 200 J and its temperature rises by 10 °C. Calculate its specific heat capacity.", equation: "Eh = cmΔT  →  c = Eh ÷ (mΔT)", correctAnswer: "840 Jkg⁻¹°C⁻¹", markScheme: "m = 0.500 kg;  c = 4 200 ÷ (0.500 × 10) = 4 200 ÷ 5 = 840 Jkg⁻¹°C⁻¹" },
+    ],
+    hard: [
+      { id: "Eh-h1", stem: "A 300 g iron block (c = 450 Jkg⁻¹°C⁻¹) is heated from 20 °C to 120 °C. Calculate the energy absorbed.", equation: "Eh = cmΔT", correctAnswer: "13 500 J", markScheme: "m = 0.300 kg;  ΔT = 100 °C;  Eh = 450 × 0.300 × 100 = 13 500 J" },
+      { id: "Eh-h2", stem: "A 4 kJ heat source warms 250 g of a substance by 80 °C. Calculate its specific heat capacity.", equation: "Eh = cmΔT  →  c = Eh ÷ (mΔT)", correctAnswer: "200 Jkg⁻¹°C⁻¹", markScheme: "Eh = 4 000 J;  m = 0.250 kg;  c = 4 000 ÷ (0.250 × 80) = 4 000 ÷ 20 = 200 Jkg⁻¹°C⁻¹" },
+    ],
+  },
+
+  // ── P = I²R ────────────────────────────────────────────────────────────────
+  "P-I2R": {
+    easy: [
+      { id: "PI2R-e1", stem: "A current of 3 A flows through a 4 Ω resistor. Calculate the power dissipated.", equation: "P = I²R", options: ["12 W", "36 W", "0.75 W", "144 W"], correctOption: 1, markScheme: "P = 3² × 4 = 9 × 4 = 36 W" },
+      { id: "PI2R-e2", stem: "A 50 W resistor carries a current of 5 A. Calculate the resistance.", equation: "P = I²R  →  R = P ÷ I²", options: ["10 Ω", "2 Ω", "250 Ω", "0.5 Ω"], correctOption: 1, markScheme: "R = P ÷ I² = 50 ÷ 25 = 2 Ω" },
+      { id: "PI2R-e3", stem: "A 8 Ω resistor dissipates 72 W. Calculate the current through it.", equation: "P = I²R  →  I = √(P ÷ R)", options: ["576 A", "9 A", "3 A", "0.33 A"], correctOption: 2, markScheme: "I = √(P ÷ R) = √(72 ÷ 8) = √9 = 3 A" },
+    ],
+    medium: [
+      { id: "PI2R-m1", stem: "A current of 2.5 A flows through a 10 Ω resistor. Calculate the power dissipated.", equation: "P = I²R", correctAnswer: "62.5 W", markScheme: "P = 2.5² × 10 = 6.25 × 10 = 62.5 W" },
+      { id: "PI2R-m2", stem: "A resistor dissipates 180 W when a current of 6 A flows through it. Calculate the resistance.", equation: "P = I²R  →  R = P ÷ I²", correctAnswer: "5 Ω", markScheme: "R = 180 ÷ 36 = 5 Ω" },
+      { id: "PI2R-m3", stem: "A 100 Ω resistor dissipates 400 W. Calculate the current.", equation: "P = I²R  →  I = √(P ÷ R)", correctAnswer: "2 A", markScheme: "I = √(400 ÷ 100) = √4 = 2 A" },
+    ],
+    hard: [
+      { id: "PI2R-h1", stem: "A current of 50 mA flows through a 2.2 kΩ resistor. Calculate the power dissipated.", equation: "P = I²R", correctAnswer: "5.5 W", markScheme: "I = 0.050 A;  R = 2 200 Ω;  P = 0.050² × 2 200 = 0.0025 × 2 200 = 5.5 W" },
+      { id: "PI2R-h2", stem: "A resistor dissipates 0.36 W when a current of 60 mA flows through it. Calculate the resistance.", equation: "P = I²R  →  R = P ÷ I²", correctAnswer: "100 Ω", markScheme: "I = 0.060 A;  R = 0.36 ÷ (0.060²) = 0.36 ÷ 0.0036 = 100 Ω" },
+    ],
+  },
+
+  // ── P = V²/R ───────────────────────────────────────────────────────────────
+  "P-V2R": {
+    easy: [
+      { id: "PV2R-e1", stem: "A 12 V voltage is applied across a 4 Ω resistor. Calculate the power.", equation: "P = V²/R", options: ["48 W", "36 W", "3 W", "6 W"], correctOption: 1, markScheme: "P = 12² ÷ 4 = 144 ÷ 4 = 36 W" },
+      { id: "PV2R-e2", stem: "A 50 W device operates at 10 V. Calculate the resistance.", equation: "P = V²/R  →  R = V² ÷ P", options: ["500 Ω", "5 Ω", "2 Ω", "0.5 Ω"], correctOption: 2, markScheme: "R = 10² ÷ 50 = 100 ÷ 50 = 2 Ω" },
+      { id: "PV2R-e3", stem: "A 25 Ω resistor dissipates 100 W. Calculate the voltage across it.", equation: "P = V²/R  →  V = √(PR)", options: ["4 V", "50 V", "2 500 V", "2 V"], correctOption: 1, markScheme: "V = √(100 × 25) = √2 500 = 50 V" },
+    ],
+    medium: [
+      { id: "PV2R-m1", stem: "A 230 V appliance has a resistance of 52.9 Ω. Calculate the power. (give your answer to 3 sig. figs.)", equation: "P = V²/R", correctAnswer: "1 000 W", markScheme: "P = 230² ÷ 52.9 = 52 900 ÷ 52.9 = 1 000 W" },
+      { id: "PV2R-m2", stem: "A 60 W bulb operates at 230 V. Calculate its resistance.", equation: "P = V²/R  →  R = V² ÷ P", correctAnswer: "882 Ω", markScheme: "R = 230² ÷ 60 = 52 900 ÷ 60 = 881.7... ≈ 882 Ω" },
+      { id: "PV2R-m3", stem: "A 400 Ω resistor dissipates 25 W. Calculate the voltage across it.", equation: "P = V²/R  →  V = √(PR)", correctAnswer: "100 V", markScheme: "V = √(25 × 400) = √10 000 = 100 V" },
+    ],
+    hard: [
+      { id: "PV2R-h1", stem: "A device connected to a 12 V supply dissipates 720 mW. Calculate its resistance.", equation: "P = V²/R  →  R = V² ÷ P", correctAnswer: "200 Ω", markScheme: "P = 0.720 W;  R = 12² ÷ 0.720 = 144 ÷ 0.720 = 200 Ω" },
+      { id: "PV2R-h2", stem: "A 2.2 kΩ resistor dissipates 4.4 W. Calculate the voltage across it.", equation: "P = V²/R  →  V = √(PR)", correctAnswer: "98.5 V", markScheme: "R = 2 200 Ω;  V = √(4.4 × 2 200) = √9 680 ≈ 98.5 V" },
+    ],
+  },
+
+  // ── E = hf (Higher) ────────────────────────────────────────────────────────
+  "E-hf": {
+    easy: [
+      { id: "Ehf-e1", stem: "A photon has frequency 6.0 × 10¹⁴ Hz. (h = 6.63 × 10⁻³⁴ Js) Calculate the energy of the photon.", equation: "E = hf", options: ["3.98 × 10⁻¹⁹ J", "6.63 × 10⁻³⁴ J", "9.05 × 10⁻⁴⁸ J", "1.1 × 10¹⁵ J"], correctOption: 0, markScheme: "E = 6.63×10⁻³⁴ × 6.0×10¹⁴ = 3.98×10⁻¹⁹ J" },
+      { id: "Ehf-e2", stem: "A photon has energy 2.0 × 10⁻¹⁹ J. (h = 6.63 × 10⁻³⁴ Js) Calculate its frequency.", equation: "E = hf  →  f = E ÷ h", options: ["3.0 × 10¹⁴ Hz", "1.33 × 10⁻⁵³ Hz", "6.63 × 10⁻³⁴ Hz", "3.0 × 10⁸ Hz"], correctOption: 0, markScheme: "f = 2.0×10⁻¹⁹ ÷ 6.63×10⁻³⁴ = 3.0×10¹⁴ Hz" },
+    ],
+    medium: [
+      { id: "Ehf-m1", stem: "A UV photon has frequency 8.5 × 10¹⁵ Hz. (h = 6.63 × 10⁻³⁴ Js) Calculate the energy.", equation: "E = hf", correctAnswer: "5.64 × 10⁻¹⁸ J", markScheme: "E = 6.63×10⁻³⁴ × 8.5×10¹⁵ = 5.64×10⁻¹⁸ J" },
+      { id: "Ehf-m2", stem: "A photon carries energy 3.3 × 10⁻¹⁹ J. (h = 6.63 × 10⁻³⁴ Js) Calculate the frequency.", equation: "E = hf  →  f = E ÷ h", correctAnswer: "4.98 × 10¹⁴ Hz", markScheme: "f = 3.3×10⁻¹⁹ ÷ 6.63×10⁻³⁴ = 4.98×10¹⁴ Hz" },
+    ],
+    hard: [
+      { id: "Ehf-h1", stem: "A photon has wavelength 450 nm. (h = 6.63 × 10⁻³⁴ Js, c = 3.0 × 10⁸ ms⁻¹) Calculate the photon energy.", equation: "f = v ÷ λ;  E = hf", correctAnswer: "4.42 × 10⁻¹⁹ J", markScheme: "λ = 450×10⁻⁹ m;  f = 3.0×10⁸ ÷ 450×10⁻⁹ = 6.67×10¹⁴ Hz;  E = 6.63×10⁻³⁴ × 6.67×10¹⁴ = 4.42×10⁻¹⁹ J" },
+      { id: "Ehf-h2", stem: "A 3.0 eV photon strikes a surface. (1 eV = 1.6 × 10⁻¹⁹ J, h = 6.63 × 10⁻³⁴ Js) Calculate the frequency.", equation: "E = hf  →  f = E ÷ h", correctAnswer: "7.24 × 10¹⁴ Hz", markScheme: "E = 3.0 × 1.6×10⁻¹⁹ = 4.8×10⁻¹⁹ J;  f = 4.8×10⁻¹⁹ ÷ 6.63×10⁻³⁴ = 7.24×10¹⁴ Hz" },
+    ],
+  },
+
+  // ── E = QV (Higher) ────────────────────────────────────────────────────────
+  "E-QV": {
+    easy: [
+      { id: "EQV-e1", stem: "A charge of 5 C is accelerated through a potential difference of 12 V. Calculate the energy gained.", equation: "E = QV", options: ["2.4 J", "17 J", "60 J", "7 J"], correctOption: 2, markScheme: "E = Q × V = 5 × 12 = 60 J" },
+      { id: "EQV-e2", stem: "An electron (Q = 1.6 × 10⁻¹⁹ C) gains 3.2 × 10⁻¹⁸ J of energy. Calculate the potential difference.", equation: "E = QV  →  V = E ÷ Q", options: ["5.12 × 10⁻³⁷ V", "20 V", "3.2 × 10⁻¹⁸ V", "2 × 10⁰ V"], correctOption: 1, markScheme: "V = 3.2×10⁻¹⁸ ÷ 1.6×10⁻¹⁹ = 20 V" },
+    ],
+    medium: [
+      { id: "EQV-m1", stem: "A proton (Q = 1.6 × 10⁻¹⁹ C) is accelerated through 500 V. Calculate the energy gained.", equation: "E = QV", correctAnswer: "8.0 × 10⁻¹⁷ J", markScheme: "E = 1.6×10⁻¹⁹ × 500 = 8.0×10⁻¹⁷ J" },
+      { id: "EQV-m2", stem: "A charge of 0.02 C is accelerated through 60 V. Calculate the kinetic energy gained.", equation: "E = QV", correctAnswer: "1.2 J", markScheme: "E = 0.02 × 60 = 1.2 J" },
+    ],
+    hard: [
+      { id: "EQV-h1", stem: "An alpha particle (Q = 3.2 × 10⁻¹⁹ C) is accelerated through 2 500 V. Calculate the energy gained in eV. (1 eV = 1.6 × 10⁻¹⁹ J)", equation: "E = QV", correctAnswer: "5 000 eV", markScheme: "E = 3.2×10⁻¹⁹ × 2 500 = 8.0×10⁻¹⁶ J;  E(eV) = 8.0×10⁻¹⁶ ÷ 1.6×10⁻¹⁹ = 5 000 eV" },
+      { id: "EQV-h2", stem: "An electron gains 10 keV of energy. (1 eV = 1.6 × 10⁻¹⁹ J, Q = 1.6 × 10⁻¹⁹ C) Calculate the accelerating voltage.", equation: "E = QV  →  V = E ÷ Q", correctAnswer: "10 000 V", markScheme: "E = 10 000 × 1.6×10⁻¹⁹ = 1.6×10⁻¹⁵ J;  V = 1.6×10⁻¹⁵ ÷ 1.6×10⁻¹⁹ = 10 000 V (10 kV)" },
+    ],
+  },
+
+  // ── F = kx (Higher) ────────────────────────────────────────────────────────
+  "F-kx": {
+    easy: [
+      { id: "Fkx-e1", stem: "A spring with spring constant k = 50 Nm⁻¹ is stretched by 0.2 m. Calculate the force.", equation: "F = kx", options: ["0.004 N", "10 N", "50.2 N", "250 N"], correctOption: 1, markScheme: "F = k × x = 50 × 0.2 = 10 N" },
+      { id: "Fkx-e2", stem: "A 20 N force stretches a spring by 0.4 m. Calculate the spring constant.", equation: "F = kx  →  k = F ÷ x", options: ["8 Nm⁻¹", "50 Nm⁻¹", "0.02 Nm⁻¹", "8 Nm⁻¹"], correctOption: 1, markScheme: "k = F ÷ x = 20 ÷ 0.4 = 50 Nm⁻¹" },
+      { id: "Fkx-e3", stem: "A spring with k = 100 Nm⁻¹ is compressed by a 15 N force. Calculate the compression.", equation: "F = kx  →  x = F ÷ k", options: ["1 500 m", "85 m", "0.15 m", "6.67 m"], correctOption: 2, markScheme: "x = F ÷ k = 15 ÷ 100 = 0.15 m" },
+    ],
+    medium: [
+      { id: "Fkx-m1", stem: "A spring (k = 200 Nm⁻¹) is stretched by 0.35 m. Calculate the restoring force.", equation: "F = kx", correctAnswer: "70 N", markScheme: "F = 200 × 0.35 = 70 N" },
+      { id: "Fkx-m2", stem: "A 450 N force stretches a spring by 9.0 cm. Calculate the spring constant.", equation: "F = kx  →  k = F ÷ x", correctAnswer: "5 000 Nm⁻¹", markScheme: "x = 9.0 cm = 0.090 m;  k = 450 ÷ 0.090 = 5 000 Nm⁻¹" },
+    ],
+    hard: [
+      { id: "Fkx-h1", stem: "A spring (k = 2.5 kNm⁻¹) is compressed by 40 mm. Calculate the force.", equation: "F = kx", correctAnswer: "100 N", markScheme: "k = 2 500 Nm⁻¹;  x = 0.040 m;  F = 2 500 × 0.040 = 100 N" },
+      { id: "Fkx-h2", stem: "A 250 g mass hangs from a spring and stretches it by 5.0 cm. (g = 9.8 Nkg⁻¹) Calculate k.", equation: "F = kx  →  k = F ÷ x", correctAnswer: "49 Nm⁻¹", markScheme: "F = W = 0.250 × 9.8 = 2.45 N;  x = 0.050 m;  k = 2.45 ÷ 0.050 = 49 Nm⁻¹" },
+    ],
+  },
+
+  // ── I = P/A (Irradiance, Higher) ───────────────────────────────────────────
+  "irradiance": {
+    easy: [
+      { id: "irr-e1", stem: "A light source radiates 60 W uniformly through an area of 3 m². Calculate the irradiance.", equation: "I = P/A", options: ["0.05 Wm⁻²", "20 Wm⁻²", "180 Wm⁻²", "57 Wm⁻²"], correctOption: 1, markScheme: "I = P ÷ A = 60 ÷ 3 = 20 Wm⁻²" },
+      { id: "irr-e2", stem: "Radiation of irradiance 50 Wm⁻² falls on a 0.5 m² detector. Calculate the power received.", equation: "I = P/A  →  P = IA", options: ["100 W", "25 W", "50.5 W", "0.01 W"], correctOption: 1, markScheme: "P = I × A = 50 × 0.5 = 25 W" },
+    ],
+    medium: [
+      { id: "irr-m1", stem: "A 100 W source radiates uniformly over a sphere of radius 2 m. Calculate the irradiance at that distance.", equation: "I = P/A;  A = 4πr²", correctAnswer: "1.99 Wm⁻²", markScheme: "A = 4π × 2² = 50.27 m²;  I = 100 ÷ 50.27 = 1.99 Wm⁻²" },
+      { id: "irr-m2", stem: "Radiation of irradiance 200 Wm⁻² falls on a 20 cm × 15 cm solar panel. Calculate the power incident on the panel.", equation: "I = P/A  →  P = IA", correctAnswer: "6 W", markScheme: "A = 0.20 × 0.15 = 0.030 m²;  P = 200 × 0.030 = 6 W" },
+    ],
+    hard: [
+      { id: "irr-h1", stem: "A point source emits 240 W. Calculate the irradiance at a distance of 4.0 m from the source.", equation: "I = P / (4πr²)", correctAnswer: "1.19 Wm⁻²", markScheme: "A = 4π × 4² = 201.1 m²;  I = 240 ÷ 201.1 ≈ 1.19 Wm⁻²" },
+      { id: "irr-h2", stem: "The irradiance from a source is 80 Wm⁻² at 3.0 m. Calculate the irradiance at 6.0 m.", equation: "I ∝ 1/d²", correctAnswer: "20 Wm⁻²", markScheme: "Distance doubles → irradiance ÷ 4;  I = 80 ÷ 4 = 20 Wm⁻²" },
+    ],
+  },
+
+  // ── E = mc² (Higher) ───────────────────────────────────────────────────────
+  "mass-energy": {
+    easy: [
+      { id: "Emc2-e1", stem: "Calculate the energy released when a mass of 1.0 × 10⁻³⁰ kg is converted to energy. (c = 3.0 × 10⁸ ms⁻¹)", equation: "E = mc²", options: ["9.0 × 10⁻¹⁴ J", "3.0 × 10⁻²² J", "1.0 × 10⁻³⁰ J", "6.0 × 10⁻²³ J"], correctOption: 0, markScheme: "E = 1.0×10⁻³⁰ × (3.0×10⁸)² = 1.0×10⁻³⁰ × 9.0×10¹⁶ = 9.0×10⁻¹⁴ J" },
+      { id: "Emc2-e2", stem: "A nuclear reaction releases 4.5 × 10¹³ J of energy. (c = 3.0 × 10⁸ ms⁻¹) Calculate the mass converted.", equation: "E = mc²  →  m = E ÷ c²", options: ["5.0 × 10⁻⁴ kg", "1.5 × 10²² kg", "1.35 × 10²² kg", "4.5 × 10¹³ kg"], correctOption: 0, markScheme: "m = 4.5×10¹³ ÷ (3.0×10⁸)² = 4.5×10¹³ ÷ 9.0×10¹⁶ = 5.0×10⁻⁴ kg" },
+    ],
+    medium: [
+      { id: "Emc2-m1", stem: "The Sun converts 4.0 × 10⁹ kg of mass to energy each second. (c = 3.0 × 10⁸ ms⁻¹) Calculate the power output.", equation: "E = mc²", correctAnswer: "3.6 × 10²⁶ W", markScheme: "E = 4.0×10⁹ × (3.0×10⁸)² = 4.0×10⁹ × 9.0×10¹⁶ = 3.6×10²⁶ J;  P = 3.6×10²⁶ W (per second)" },
+      { id: "Emc2-m2", stem: "A fission reaction releases 3.2 × 10⁻¹¹ J. (c = 3.0 × 10⁸ ms⁻¹) Calculate the mass converted.", equation: "E = mc²  →  m = E ÷ c²", correctAnswer: "3.6 × 10⁻²⁸ kg", markScheme: "m = 3.2×10⁻¹¹ ÷ 9.0×10¹⁶ = 3.6×10⁻²⁸ kg" },
+    ],
+    hard: [
+      { id: "Emc2-h1", stem: "A reaction converts 2.0 μg of mass into energy. (c = 3.0 × 10⁸ ms⁻¹) Calculate the energy released in joules.", equation: "E = mc²", correctAnswer: "1.8 × 10⁸ J", markScheme: "m = 2.0 μg = 2.0×10⁻⁶ g = 2.0×10⁻⁹ kg;  E = 2.0×10⁻⁹ × 9.0×10¹⁶ = 1.8×10⁸ J" },
+    ],
+  },
+
+  // ── Temperature conversion ─────────────────────────────────────────────────
+  "temp-conv": {
+    easy: [
+      { id: "temp-e1", stem: "Convert 25 °C to kelvin.", equation: "T(K) = T(°C) + 273", options: ["248 K", "298 K", "25 K", "273 K"], correctOption: 1, markScheme: "T = 25 + 273 = 298 K" },
+      { id: "temp-e2", stem: "Convert 300 K to degrees Celsius.", equation: "T(°C) = T(K) − 273", options: ["573 °C", "27 °C", "300 °C", "−273 °C"], correctOption: 1, markScheme: "T = 300 − 273 = 27 °C" },
+      { id: "temp-e3", stem: "Convert −40 °C to kelvin.", equation: "T(K) = T(°C) + 273", options: ["233 K", "313 K", "−40 K", "40 K"], correctOption: 0, markScheme: "T = −40 + 273 = 233 K" },
+    ],
+    medium: [
+      { id: "temp-m1", stem: "Convert 127 °C to kelvin.", equation: "T(K) = T(°C) + 273", correctAnswer: "400 K", markScheme: "T = 127 + 273 = 400 K" },
+      { id: "temp-m2", stem: "Convert 350 K to degrees Celsius.", equation: "T(°C) = T(K) − 273", correctAnswer: "77 °C", markScheme: "T = 350 − 273 = 77 °C" },
+      { id: "temp-m3", stem: "The temperature of a gas changes from 17 °C to 117 °C. Calculate the temperature change in kelvin.", equation: "T(K) = T(°C) + 273", correctAnswer: "100 K", markScheme: "T₁ = 290 K;  T₂ = 390 K;  ΔT = 100 K" },
+    ],
+    hard: [
+      { id: "temp-h1", stem: "A gas has temperature −173 °C. Convert to kelvin.", equation: "T(K) = T(°C) + 273", correctAnswer: "100 K", markScheme: "T = −173 + 273 = 100 K" },
+      { id: "temp-h2", stem: "The temperature of a gas is doubled from 150 K. Calculate the new temperature in °C.", equation: "T(°C) = T(K) − 273", correctAnswer: "27 °C", markScheme: "New T = 150 × 2 = 300 K;  T(°C) = 300 − 273 = 27 °C" },
+    ],
+  },
+}
+
+/**
+ * Return questions for a given SQA equation at the requested difficulty.
+ * Falls back to demo questions when a specific bank is not available.
+ */
+function getEquationQuestions(equationId: string, difficulty: "easy" | "medium" | "hard"): CalcQuestion[] {
+  const bank = EQUATION_QUESTION_BANKS[equationId]
+  if (bank) return bank[difficulty]
+  // Fallback: use the legacy demo questions mapped to the closest difficulty
+  if (difficulty === "easy")   return getDemoSingleEqQuestions(1)
+  if (difficulty === "medium") return getDemoSingleEqQuestions(4)
+  return getDemoSingleEqQuestions(7)
+}
+
 function CalculationsMode({
   selectedLevel,
   onBack,
@@ -2160,31 +2640,30 @@ function CalculationsMode({
   isDarkMode: boolean
   currentUserId?: string
 }) {
-  type CalcSubMode = "single-equation" | "exam-level" | "correct-me" | null
-  type CalcPhase = "hub" | "level-select" | "quiz" | "results"
+  type CalcDifficulty = "easy" | "medium" | "hard"
+  type CalcSubMode = CalcDifficulty | "exam-level" | "correct-me" | null
+  type CalcPhase = "hub" | "equation-select" | "quiz" | "results"
 
   const [phase, setPhase] = useState<CalcPhase>("hub")
   const [subMode, setSubMode] = useState<CalcSubMode>(null)
-  const [eqLevel, setEqLevel] = useState<number>(1)
+  const [selectedEquationId, setSelectedEquationId] = useState<string | null>(null)
+  const [equationSqaTab, setEquationSqaTab] = useState<"N5" | "Higher" | "AH">("N5")
   const [questions, setQuestions] = useState<CalcQuestion[]>([])
   const [currentIdx, setCurrentIdx] = useState(0)
   const [typedAnswers, setTypedAnswers] = useState<Record<number, string>>({})
   const [mcAnswers, setMcAnswers] = useState<Record<number, number>>({})
-  /** For multi-step exam questions, track typed answers per step */
   const [stepTypedAnswers, setStepTypedAnswers] = useState<Record<string, string>>({})
   const [stepMcAnswers, setStepMcAnswers] = useState<Record<string, number>>({})
   const [submitted, setSubmitted] = useState(false)
-  const [answerMode, setAnswerMode] = useState<"mc" | "typed">("mc")
-  /** For correct-me hotspot: which option the user tapped */
   const [hotspotChoice, setHotspotChoice] = useState<Record<number, number>>({})
   const [currentStepIdx, setCurrentStepIdx] = useState(0)
 
   const cardBase = isDarkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200 shadow-xl"
-  const btnBase = `rounded-2xl font-black border-2 transition-all px-5 py-3`
 
-  const startSingleEq = (level: number) => {
-    setEqLevel(level)
-    setQuestions(getDemoSingleEqQuestions(level))
+  const startEquationQuiz = (equationId: string, difficulty: CalcDifficulty) => {
+    setSelectedEquationId(equationId)
+    setSubMode(difficulty)
+    setQuestions(getEquationQuestions(equationId, difficulty))
     setCurrentIdx(0)
     setTypedAnswers({})
     setMcAnswers({})
@@ -2194,6 +2673,7 @@ function CalculationsMode({
   }
 
   const startExamLevel = () => {
+    setSubMode("exam-level")
     setQuestions(CALC_EXAM_QUESTIONS)
     setCurrentIdx(0)
     setCurrentStepIdx(0)
@@ -2204,6 +2684,7 @@ function CalculationsMode({
   }
 
   const startCorrectMe = () => {
+    setSubMode("correct-me")
     setQuestions(CALC_CORRECT_ME_QUESTIONS)
     setCurrentIdx(0)
     setHotspotChoice({})
@@ -2215,30 +2696,46 @@ function CalculationsMode({
 
   // ── Hub ──────────────────────────────────────────────────────────────────
   if (phase === "hub") {
-    const modes = [
+    const difficultyModes = [
       {
-        id: "single-equation" as const,
-        icon: "🎯",
-        title: "Single Equation Mastery",
-        desc: "Progressive difficulty to master individual equations — from basic substitution through to complex multi-step rearrangements with non-SI units.",
+        id: "easy" as CalcDifficulty,
+        icon: "⭐",
+        title: "Easy",
+        desc: "Basic calculations with MC Answers",
+        color: "from-green-600 to-green-800",
+        accent: "border-green-500",
+      },
+      {
+        id: "medium" as CalcDifficulty,
+        icon: "⭐⭐",
+        title: "Medium",
+        desc: "Typed answer calculations",
         color: "from-blue-600 to-blue-800",
         accent: "border-blue-500",
       },
+      {
+        id: "hard" as CalcDifficulty,
+        icon: "⭐⭐⭐",
+        title: "Hard",
+        desc: "Exam Level Calculations",
+        color: "from-[#800000] to-[#600000]",
+        accent: "border-red-700",
+      },
+    ]
+    const extraModes = [
       {
         id: "exam-level" as const,
         icon: "📋",
         title: "Exam Level Calculations",
         desc: "Multi-step problems that chain different equations together — just like SQA exam questions.",
-        color: "from-[#800000] to-[#600000]",
-        accent: "border-red-700",
+        color: "from-purple-700 to-purple-900",
       },
       {
         id: "correct-me" as const,
         icon: "🔍",
         title: "Correct Me!",
-        desc: "Spot and fix mistakes in worked calculations. Tap the hotspot to identify the error, then explain the correct working.",
+        desc: "Spot and fix mistakes in worked calculations. Tap the hotspot to identify the error.",
         color: "from-amber-600 to-amber-800",
-        accent: "border-amber-500",
       },
     ]
     return (
@@ -2260,15 +2757,15 @@ function CalculationsMode({
               <span className="text-amber-600 font-bold">{selectedLevel}</span>
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {modes.map((m) => (
+          {/* Primary difficulty modes */}
+          <div className="grid md:grid-cols-3 gap-6 mb-6">
+            {difficultyModes.map((m) => (
               <button
                 key={m.id}
                 onClick={() => {
                   setSubMode(m.id)
-                  if (m.id === "single-equation") setPhase("level-select")
-                  else if (m.id === "exam-level") startExamLevel()
-                  else startCorrectMe()
+                  setEquationSqaTab("N5")
+                  setPhase("equation-select")
                 }}
                 className={`group text-left rounded-3xl border-2 p-7 transition-all hover:scale-[1.02] hover:shadow-2xl ${
                   isDarkMode
@@ -2284,13 +2781,48 @@ function CalculationsMode({
               </button>
             ))}
           </div>
+          {/* Secondary modes */}
+          <div className="grid md:grid-cols-2 gap-4">
+            {extraModes.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => {
+                  if (m.id === "exam-level") startExamLevel()
+                  else startCorrectMe()
+                }}
+                className={`group text-left rounded-2xl border-2 p-5 transition-all hover:scale-[1.01] hover:shadow-xl ${
+                  isDarkMode
+                    ? "bg-slate-800 border-slate-700 hover:border-slate-500"
+                    : "bg-white border-slate-200 hover:border-slate-300 shadow-md"
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${m.color} flex items-center justify-center text-xl shadow-md`}>
+                    {m.icon}
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black mb-1">{m.title}</h3>
+                    <p className={`text-xs leading-relaxed ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>{m.desc}</p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     )
   }
 
-  // ── Level Select (Single Equation Mastery) ───────────────────────────────
-  if (phase === "level-select") {
+  // ── Equation Select ───────────────────────────────────────────────────────
+  if (phase === "equation-select") {
+    const difficulty = subMode as CalcDifficulty
+    const diffLabel = difficulty === "easy" ? "Easy" : difficulty === "medium" ? "Medium" : "Hard"
+    const diffColor = difficulty === "easy" ? "text-green-600" : difficulty === "medium" ? "text-blue-600" : "text-[#800000]"
+    const tabs: ("N5" | "Higher" | "AH")[] = ["N5", "Higher", "AH"]
+    const tabLabels: Record<string, string> = { N5: "National 5", Higher: "Higher", AH: "Advanced Higher" }
+    const filteredEqs = SQA_EQUATIONS.filter((e) => e.sqaLevel === equationSqaTab)
+    const topics = [...new Set(filteredEqs.map((e) => e.topic))]
+
     return (
       <div className="pt-24 min-h-screen p-6 animate-in fade-in slide-in-from-right-4">
         <div className="max-w-3xl mx-auto">
@@ -2301,27 +2833,75 @@ function CalculationsMode({
             <ChevronLeft className="w-4 h-4" />
             Back
           </button>
-          <h2 className="text-3xl font-black mb-2">Single Equation Mastery</h2>
-          <p className={`mb-8 ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
-            Select a difficulty level — they unlock in order. Start at Level 1 and progress when ready.
-          </p>
-          <div className="grid sm:grid-cols-2 gap-4 mb-8">
-            {CALC_SINGLE_EQ_LEVELS.map((l) => (
+          <div className="mb-8">
+            <h2 className="text-3xl font-black mb-1">
+              Select an Equation
+              <span className={`ml-3 text-xl font-black ${diffColor}`}>— {diffLabel}</span>
+            </h2>
+            <p className={`text-sm ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+              Based on the SQA Relationship Sheet. Choose which equation you want to practise.
+            </p>
+          </div>
+          {/* SQA level tabs */}
+          <div className="flex gap-2 mb-6">
+            {tabs.map((tab) => (
               <button
-                key={l.level}
-                onClick={() => startSingleEq(l.level)}
-                className={`flex items-start gap-4 text-left p-5 rounded-2xl border-2 transition-all hover:scale-[1.01] ${
-                  isDarkMode
-                    ? "bg-slate-800 border-slate-700 hover:border-amber-500"
-                    : "bg-white border-slate-200 hover:border-[#800000] shadow-md"
+                key={tab}
+                onClick={() => setEquationSqaTab(tab)}
+                className={`px-4 py-2 rounded-xl font-black text-sm transition-all border-2 ${
+                  equationSqaTab === tab
+                    ? "bg-[#800000] text-white border-[#800000]"
+                    : isDarkMode
+                      ? "border-slate-600 text-slate-300 hover:border-slate-400"
+                      : "border-slate-200 text-slate-600 hover:border-slate-400"
                 }`}
               >
-                <span className="text-3xl">{l.emoji}</span>
-                <div>
-                  <p className="font-black text-lg">{l.label}</p>
-                  <p className={`text-sm ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>{l.desc}</p>
-                </div>
+                {tabLabels[tab]}
               </button>
+            ))}
+          </div>
+          {/* Equations grouped by topic */}
+          <div className="space-y-6 pb-8">
+            {topics.map((topic) => (
+              <div key={topic}>
+                <h3 className={`text-xs font-black uppercase tracking-widest mb-3 ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                  {topic}
+                </h3>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {filteredEqs
+                    .filter((e) => e.topic === topic)
+                    .map((eq) => {
+                      const hasBank = Boolean(EQUATION_QUESTION_BANKS[eq.id])
+                      return (
+                        <button
+                          key={eq.id}
+                          onClick={() => startEquationQuiz(eq.id, difficulty)}
+                          className={`text-left p-4 rounded-2xl border-2 transition-all hover:scale-[1.01] ${
+                            isDarkMode
+                              ? "bg-slate-800 border-slate-700 hover:border-amber-500"
+                              : "bg-white border-slate-200 hover:border-[#800000] shadow-sm"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className={`font-black font-mono text-base ${isDarkMode ? "text-amber-300" : "text-amber-700"}`}>
+                                {eq.formula}
+                              </p>
+                              <p className={`text-xs mt-0.5 ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                                {eq.description}
+                              </p>
+                            </div>
+                            {!hasBank && (
+                              <span className={`text-xs shrink-0 px-2 py-0.5 rounded-full ${isDarkMode ? "bg-slate-700 text-slate-400" : "bg-slate-100 text-slate-500"}`}>
+                                demo
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      )
+                    })}
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -2333,11 +2913,10 @@ function CalculationsMode({
   if (phase === "quiz" && currentQ) {
     const isExam = subMode === "exam-level"
     const isCorrectMe = subMode === "correct-me"
-    const isSingle = subMode === "single-equation"
+    const isDifficultyMode = subMode === "easy" || subMode === "medium" || subMode === "hard"
 
-    // Determine if typed or MC for single-equation
-    const useMC = isCorrectMe || (isSingle && (eqLevel === 1 || eqLevel === 3))
-    const useTyped = isSingle && !useMC
+    // Easy = MC answers; Medium/Hard = typed
+    const useMC = isCorrectMe || subMode === "easy"
 
     const steps = currentQ.steps ?? []
     const currentStep = isExam && steps.length > 0 ? steps[currentStepIdx] : null
@@ -2359,19 +2938,17 @@ function CalculationsMode({
       } else if (isLastQ) {
         if (currentUserId) {
           const existing = loadUserCalcProgress(currentUserId, selectedLevel)
-          if (subMode === "single-equation") {
-            // Count correct answers using original question indices (mcAnswers is keyed by original index)
+          if (isDifficultyMode && selectedEquationId) {
+            const modeKey = subMode === "easy" ? "easyMode" : subMode === "medium" ? "mediumMode" : "hardMode"
             let correct = 0
-            questions.forEach((q, origIdx) => {
-              if (q.options && q.correctOption !== undefined && mcAnswers[origIdx] === q.correctOption) {
-                correct++
-              }
-            })
-            const mcTotal = questions.filter((q) => q.options && q.correctOption !== undefined).length
-            const prev = existing.singleEq[eqLevel] ?? { correct: 0, total: 0 }
-            existing.singleEq[eqLevel] = { correct: prev.correct + correct, total: prev.total + mcTotal }
+            if (subMode === "easy") {
+              questions.forEach((q, i) => {
+                if (q.options && q.correctOption !== undefined && mcAnswers[i] === q.correctOption) correct++
+              })
+            }
+            const prev = existing[modeKey][selectedEquationId] ?? { correct: 0, total: 0 }
+            existing[modeKey][selectedEquationId] = { correct: prev.correct + correct, total: prev.total + questions.length }
           } else if (subMode === "exam-level") {
-            // Exam-level is self-assessed; track sessions completed (total only, no auto-graded correct)
             existing.examLevel = { correct: existing.examLevel.correct, total: existing.examLevel.total + 1 }
           } else if (subMode === "correct-me") {
             const correct = questions.filter((q, i) => hotspotChoice[i] === q.mistakeOptionIndex).length
@@ -2388,6 +2965,7 @@ function CalculationsMode({
     }
 
     const activeQ = currentStep ?? currentQ
+    const eqInfo = selectedEquationId ? SQA_EQUATIONS.find((e) => e.id === selectedEquationId) : null
 
     return (
       <div className="pt-24 min-h-screen p-6 animate-in fade-in">
@@ -2396,13 +2974,13 @@ function CalculationsMode({
           <div className="flex items-center justify-between mb-4">
             <button
               onClick={() => {
-                setPhase(subMode === "single-equation" ? "level-select" : "hub")
+                setPhase(isDifficultyMode ? "equation-select" : "hub")
                 setSubmitted(false)
               }}
               className="flex items-center gap-1 text-slate-500 hover:text-[#800000] font-bold uppercase text-xs"
             >
               <ChevronLeft className="w-4 h-4" />
-              {subMode === "single-equation" ? "Levels" : "Hub"}
+              {isDifficultyMode ? "Equations" : "Hub"}
             </button>
             <span className={`text-sm font-bold ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
               Q{currentIdx + 1}/{questions.length}
@@ -2418,15 +2996,26 @@ function CalculationsMode({
 
           {/* Question Card */}
           <div className={`rounded-3xl border-2 p-7 mb-4 ${cardBase}`}>
-            {/* Sub-mode badge */}
-            <div className="flex items-center gap-2 mb-4">
-              {isSingle && (
-                <span className="text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
-                  {CALC_SINGLE_EQ_LEVELS[eqLevel - 1].label}
+            {/* Badge row */}
+            <div className="flex items-center gap-2 mb-4 flex-wrap">
+              {isDifficultyMode && (
+                <span className={`text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full ${
+                  subMode === "easy"
+                    ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300"
+                    : subMode === "medium"
+                      ? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300"
+                      : "bg-red-100 dark:bg-red-900/40 text-[#800000] dark:text-red-300"
+                }`}>
+                  {subMode === "easy" ? "Easy" : subMode === "medium" ? "Medium" : "Hard"}
+                </span>
+              )}
+              {isDifficultyMode && eqInfo && (
+                <span className={`text-xs font-black font-mono px-3 py-1 rounded-full ${isDarkMode ? "bg-slate-700 text-amber-300" : "bg-amber-50 text-amber-700"}`}>
+                  {eqInfo.formula}
                 </span>
               )}
               {isExam && (
-                <span className="text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full bg-red-100 dark:bg-red-900/40 text-[#800000] dark:text-red-300">
+                <span className="text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300">
                   Exam Level
                 </span>
               )}
@@ -2596,6 +3185,8 @@ function CalculationsMode({
   // ── Results ───────────────────────────────────────────────────────────────
   if (phase === "results") {
     const totalQ = questions.length
+    const isDifficultyMode = subMode === "easy" || subMode === "medium" || subMode === "hard"
+    const eqInfo = selectedEquationId ? SQA_EQUATIONS.find((e) => e.id === selectedEquationId) : null
     return (
       <div className="pt-24 min-h-screen p-6 animate-in fade-in">
         <div className="max-w-2xl mx-auto text-center">
@@ -2607,9 +3198,11 @@ function CalculationsMode({
               <span className="font-black text-2xl text-[#800000]">{totalQ}</span>{" "}
               question{totalQ !== 1 ? "s" : ""}.
             </p>
-            {subMode === "single-equation" && (
+            {isDifficultyMode && eqInfo && (
               <p className={`text-sm mt-3 ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
-                Completed: <strong>{CALC_SINGLE_EQ_LEVELS[eqLevel - 1].label}</strong> (Level {eqLevel})
+                Equation: <strong className="font-mono">{eqInfo.formula}</strong>
+                {" · "}
+                Difficulty: <strong className="capitalize">{subMode}</strong>
               </p>
             )}
           </div>
@@ -2620,9 +3213,17 @@ function CalculationsMode({
             >
               Hub
             </button>
+            {isDifficultyMode && (
+              <button
+                onClick={() => setPhase("equation-select")}
+                className={`flex-1 py-3 rounded-xl font-black border-2 transition-colors ${isDarkMode ? "border-slate-600 hover:border-slate-400" : "border-slate-200 hover:border-slate-400"}`}
+              >
+                Change Equation
+              </button>
+            )}
             <button
               onClick={() => {
-                if (subMode === "single-equation") startSingleEq(eqLevel)
+                if (isDifficultyMode && selectedEquationId) startEquationQuiz(selectedEquationId, subMode as CalcDifficulty)
                 else if (subMode === "exam-level") startExamLevel()
                 else startCorrectMe()
               }}
@@ -2630,14 +3231,6 @@ function CalculationsMode({
             >
               Try Again
             </button>
-            {subMode === "single-equation" && eqLevel < 8 && (
-              <button
-                onClick={() => startSingleEq(eqLevel + 1)}
-                className="flex-1 py-3 rounded-xl font-black bg-blue-700 text-white hover:bg-blue-800 transition-colors"
-              >
-                Next Level →
-              </button>
-            )}
           </div>
         </div>
       </div>
