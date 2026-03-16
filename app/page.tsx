@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
+import * as n5_2025_s2 from "@/data/past-papers/n5-2025-section2"
 import {
   ChevronLeft,
   ChevronRight,
@@ -139,6 +140,7 @@ interface PaperPart {
   marks: number
   answer: string
   markingScheme: string
+  dependsOn?: string[]
 }
 
 interface PaperQuestion {
@@ -150,6 +152,26 @@ interface PaperQuestion {
 }
 
 type Question = MCQuestion | PaperQuestion
+
+// --- Past Paper Banks ---
+
+interface PastPaperMeta {
+  id: string
+  label: string
+  source: string
+  questions: Question[]
+}
+
+const PAST_PAPER_BANKS: Record<string, PastPaperMeta[]> = {
+  "National 5": [
+    {
+      id: "n5-2025-s2",
+      label: "N5 2025 — Section 2",
+      source: n5_2025_s2.source,
+      questions: n5_2025_s2.questions as unknown as Question[],
+    },
+  ],
+}
 
 // --- Auth Types & Helpers ---
 
@@ -4991,6 +5013,9 @@ function SetupView({
   setTimingMode,
   numberOfQuestions,
   setNumberOfQuestions,
+  questionSource,
+  setQuestionSource,
+  availablePastPapers,
 }: {
   selectedLevel: string
   appMode: AppMode
@@ -5011,10 +5036,14 @@ function SetupView({
   setTimingMode: (val: TimingMode) => void
   numberOfQuestions: number
   setNumberOfQuestions: (val: number) => void
+  questionSource: string
+  setQuestionSource: (val: string) => void
+  availablePastPapers: PastPaperMeta[]
 }) {
   const [selectedTopics, setSelectedTopics] = useState<string[]>([])
   const subtopics = QA_SUBTOPICS[selectedLevel] || []
   const isPracticeOrMC = appMode === "mc" || appMode === "practice"
+  const isPastPaper = questionSource !== "ai"
 
   // Auto-select topics from coverage for retrieval mode
   useEffect(() => {
@@ -5056,7 +5085,68 @@ function SetupView({
 
       <div className="grid lg:grid-cols-3 gap-8 pb-32">
         <div className="lg:col-span-2 space-y-8">
-          {appMode !== "retrieval" && appMode !== "practice" && (
+          {(appMode === "mc" || appMode === "paper") && availablePastPapers.length > 0 && (
+            <section
+              className={`p-8 rounded-3xl shadow-sm border ${
+                isDarkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"
+              }`}
+            >
+              <h3 className="text-lg font-black mb-6 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-amber-500" />
+                Question Source
+              </h3>
+              <div className="space-y-3">
+                <label
+                  className={`flex items-center gap-4 p-4 rounded-2xl cursor-pointer transition-colors border ${
+                    questionSource === "ai"
+                      ? "border-[#800000] bg-red-50 dark:bg-red-950/20"
+                      : isDarkMode
+                        ? "border-slate-700 bg-slate-900 hover:border-slate-600"
+                        : "border-slate-100 bg-slate-50 hover:border-slate-200"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="questionSource"
+                    value="ai"
+                    checked={questionSource === "ai"}
+                    onChange={() => setQuestionSource("ai")}
+                    className="accent-[#800000]"
+                  />
+                  <div>
+                    <p className="font-black text-sm text-slate-800 dark:text-white">AI Generated</p>
+                    <p className="text-xs text-slate-500">Fresh questions created by AI for your selected topics</p>
+                  </div>
+                </label>
+                {availablePastPapers.map((paper) => (
+                  <label
+                    key={paper.id}
+                    className={`flex items-center gap-4 p-4 rounded-2xl cursor-pointer transition-colors border ${
+                      questionSource === paper.id
+                        ? "border-[#800000] bg-red-50 dark:bg-red-950/20"
+                        : isDarkMode
+                          ? "border-slate-700 bg-slate-900 hover:border-slate-600"
+                          : "border-slate-100 bg-slate-50 hover:border-slate-200"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="questionSource"
+                      value={paper.id}
+                      checked={questionSource === paper.id}
+                      onChange={() => setQuestionSource(paper.id)}
+                      className="accent-[#800000]"
+                    />
+                    <div>
+                      <p className="font-black text-sm text-slate-800 dark:text-white">{paper.label}</p>
+                      <p className="text-xs text-slate-500">{paper.source}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </section>
+          )}
+          {appMode !== "retrieval" && appMode !== "practice" && !isPastPaper && (
             <section
               className={`p-8 rounded-3xl shadow-sm border ${
                 isDarkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"
@@ -5144,6 +5234,30 @@ function SetupView({
                   <p className="text-sm text-slate-500 italic">No topics below 50% found — all topics are included.</p>
                 )}
               </div>
+            </section>
+          )}
+          {isPastPaper && (appMode === "mc" || appMode === "paper") && (
+            <section className={`p-8 rounded-3xl shadow-sm border ${
+              isDarkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"
+            }`}>
+              <h3 className="text-lg font-black mb-2 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-amber-500" />
+                Past Paper Questions
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                Questions are loaded directly from the selected past paper. No AI generation required.
+              </p>
+              {availablePastPapers.filter(p => p.id === questionSource).map(paper => (
+                <div key={paper.id} className="space-y-2">
+                  {paper.questions.map((q, i) => (
+                    <div key={i} className="flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700">
+                      <span className="w-6 h-6 rounded-full bg-[#800000] text-white flex items-center justify-center font-black text-xs shrink-0">{i + 1}</span>
+                      <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{q.topic}</span>
+                      <span className="text-xs text-slate-400">— {q.subtopic}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
             </section>
           )}
 
@@ -5383,10 +5497,10 @@ function SetupView({
 
       <div className="fixed bottom-0 left-0 w-full p-6 flex justify-center pointer-events-none z-50">
         <button
-          disabled={selectedTopics.length === 0}
+          disabled={!isPastPaper && selectedTopics.length === 0}
           onClick={() => onGenerate(selectedTopics.join(","))}
           className={`pointer-events-auto px-12 py-5 rounded-full font-black text-xl shadow-2xl transition-all flex items-center gap-3 border-4 ${
-            selectedTopics.length > 0
+            isPastPaper || selectedTopics.length > 0
               ? "bg-[#800000] text-white border-amber-500 hover:scale-105 active:scale-95"
               : "bg-slate-200 dark:bg-slate-800 text-slate-400 border-transparent cursor-not-allowed opacity-50"
           }`}
@@ -5396,7 +5510,7 @@ function SetupView({
           ) : (
             <Zap className="w-6 h-6 fill-amber-400 text-amber-400" />
           )}
-          {isGenerating ? "Prepping Papers..." : "Start Assessment"}
+          {isGenerating ? "Prepping Papers..." : isPastPaper ? "Load Past Paper" : "Start Assessment"}
         </button>
       </div>
 
@@ -6231,14 +6345,33 @@ function Results({
 }) {
   const stats = useMemo(() => {
     if (appMode === "mc") {
-      const correct = currentQuestions.reduce(
-        (acc, q, idx) => acc + (q.type === "mc" && userSelections[idx] === q.answer ? 1 : 0),
-        0
-      )
+      const hasMCQuestions = currentQuestions.some((q) => q.type === "mc")
+      if (hasMCQuestions) {
+        const correct = currentQuestions.reduce(
+          (acc, q, idx) => acc + (q.type === "mc" && userSelections[idx] === q.answer ? 1 : 0),
+          0
+        )
+        return {
+          score: correct,
+          total: currentQuestions.length,
+          percentage: Math.round((correct / currentQuestions.length) * 100),
+        }
+      }
+      // All questions are paper type (e.g. loaded from a past paper bank) — score by marks
+      let totalMarks = 0
+      let earnedMarks = 0
+      currentQuestions.forEach((q, qIdx) => {
+        if (q.type === "paper") {
+          q.parts.forEach((p, pIdx) => {
+            totalMarks += p.marks
+            earnedMarks += paperMarks[`${qIdx}-${pIdx}`] || 0
+          })
+        }
+      })
       return {
-        score: correct,
-        total: currentQuestions.length,
-        percentage: Math.round((correct / currentQuestions.length) * 100),
+        score: earnedMarks,
+        total: totalMarks,
+        percentage: totalMarks > 0 ? Math.round((earnedMarks / totalMarks) * 100) : 0,
       }
     } else {
       let totalMarks = 0
@@ -7215,6 +7348,7 @@ export default function App() {
   const [topicPerformance, setTopicPerformance] = useState<Record<string, { correct: number; total: number }>>({})
   const [timingMode, setTimingMode] = useState<TimingMode>("none")
   const [numberOfQuestions, setNumberOfQuestions] = useState(5)
+  const [questionSource, setQuestionSource] = useState<string>("ai")
 
   // Auth state
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => loadCurrentUser())
@@ -7256,11 +7390,13 @@ export default function App() {
 
   const handleLevelSelect = (level: string) => {
     setSelectedLevel(level)
+    setQuestionSource("ai")
     setView("mode")
   }
 
   const handleModeSelect = (mode: AppMode) => {
     setAppMode(mode)
+    setQuestionSource("ai")
     if (mode === "mc" || mode === "practice") {
       setIncludeALevel(false)
       setIncludeOpenEnded(false)
@@ -7328,6 +7464,22 @@ export default function App() {
   }
 
   const generateQuestions = async (topicString: string) => {
+    // Load from past paper bank if a past paper source is selected
+    if (questionSource !== "ai") {
+      const banks = PAST_PAPER_BANKS[selectedLevel] || []
+      const bank = banks.find((b) => b.id === questionSource)
+      if (bank) {
+        setCurrentQuestions(bank.questions)
+        setCurrentQuestionIdx(0)
+        setUserSelections({})
+        setPaperAnswers({})
+        setPaperMarks({})
+        setVisibleAnswers({})
+        setView("quiz")
+      }
+      return
+    }
+
     setIsGenerating(true)
 
     try {
@@ -7472,6 +7624,9 @@ export default function App() {
             setTimingMode={setTimingMode}
             numberOfQuestions={numberOfQuestions}
             setNumberOfQuestions={setNumberOfQuestions}
+            questionSource={questionSource}
+            setQuestionSource={setQuestionSource}
+            availablePastPapers={PAST_PAPER_BANKS[selectedLevel] || []}
           />
         )}
         {view === "quiz" && (
