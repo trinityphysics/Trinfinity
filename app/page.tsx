@@ -823,6 +823,47 @@ function removeCalcDocument(equationId: string): void {
   } catch {}
 }
 
+// ── Assessment Sheet helpers (relationship sheet / data sheet per subject+level) ──
+
+type SheetType = "relationship" | "data"
+
+const ASSESSMENT_SHEET_ACCEPT = ".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg"
+
+interface AssessmentSheetEntry {
+  fileName: string
+  content: string
+  uploadedAt: number
+}
+
+function assessmentSheetKey(sheetType: SheetType, subject: string, level: string): string {
+  const safeSubject = subject.replace(/\s+/g, "_")
+  const safeLevel = level.replace(/\s+/g, "_")
+  return `trinfinity_assessment_${sheetType}_sheet_${safeSubject}_${safeLevel}`
+}
+
+function loadAssessmentSheet(sheetType: SheetType, subject: string, level: string): AssessmentSheetEntry | null {
+  try {
+    if (typeof window === "undefined") return null
+    const saved = localStorage.getItem(assessmentSheetKey(sheetType, subject, level))
+    if (!saved) return null
+    return JSON.parse(saved)
+  } catch { return null }
+}
+
+function saveAssessmentSheet(sheetType: SheetType, subject: string, level: string, entry: AssessmentSheetEntry): void {
+  try {
+    if (typeof window === "undefined") return
+    localStorage.setItem(assessmentSheetKey(sheetType, subject, level), JSON.stringify(entry))
+  } catch {}
+}
+
+function removeAssessmentSheet(sheetType: SheetType, subject: string, level: string): void {
+  try {
+    if (typeof window === "undefined") return
+    localStorage.removeItem(assessmentSheetKey(sheetType, subject, level))
+  } catch {}
+}
+
 interface AICalcQuestionsCache {
   questions: CalcQuestion[]
   generatedAt: number
@@ -6695,6 +6736,20 @@ const [isOpen, setIsOpen] = useState(false)
               <span className="text-sm font-black uppercase tracking-widest">Question Banks</span>
             </button>
           )}
+          {isTeacher && (
+            <button
+              onClick={() => {
+                openModal("assessment-sheets")
+                setIsOpen(false)
+              }}
+              className="bg-white dark:bg-slate-800 shadow-xl border-2 border-sky-500 p-4 pr-6 rounded-3xl flex items-center gap-3 hover:scale-105 transition-all"
+            >
+              <div className="p-2 bg-sky-100 dark:bg-sky-900/30 rounded-lg">
+                <Upload className="w-5 h-5 text-sky-600" />
+              </div>
+              <span className="text-sm font-black uppercase tracking-widest">Assessment Sheets</span>
+            </button>
+          )}
           {isQuiz && (
             <button
               onClick={() => {
@@ -6757,6 +6812,10 @@ function GenericModal({
   const [selectedPupilId, setSelectedPupilId] = useState<string | null>(null)
   const [docUploadStatus, setDocUploadStatus] = useState<Record<string, "uploading" | "done" | "error" | undefined>>({})
   const [docRefresh, setDocRefresh] = useState(0)
+  const [sheetSubject, setSheetSubject] = useState<string>(SUBJECTS[0].id)
+  const [sheetLevel, setSheetLevel] = useState<string>("National 5")
+  const [sheetUploadStatus, setSheetUploadStatus] = useState<Record<string, "uploading" | "done" | "error" | undefined>>({})
+  const [sheetRefresh, setSheetRefresh] = useState(0)
 
   if (!activeModal) return null
 
@@ -6897,7 +6956,9 @@ function GenericModal({
                   : "My Progress"
                 : activeModal === "question-banks"
                   ? "Question Banks"
-                  : activeModal}
+                  : activeModal === "assessment-sheets"
+                    ? "Assessment Sheets"
+                    : activeModal}
             </h3>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
@@ -7492,13 +7553,188 @@ function GenericModal({
               </div>
             </div>
           )}
+          {/* ── Assessment Sheets view (teacher only) ──────────────────────── */}
+          {activeModal === "assessment-sheets" && isTeacher && (
+            <div key={sheetRefresh} className="space-y-4">
+              {/* Info banner */}
+              <div className={`p-4 rounded-2xl border ${cardBg}`}>
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-sky-100 dark:bg-sky-900/30 rounded-xl flex-shrink-0">
+                    <Upload className="w-5 h-5 text-sky-600" />
+                  </div>
+                  <div>
+                    <p className="font-black text-sm">Upload Assessment Reference Sheets</p>
+                    <p className={`text-xs mt-1 leading-relaxed ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                      Upload a Relationship Sheet and Data Sheet for each subject and level. These sheets will be
+                      available to pupils during assessments. Each subject and level can have its own distinct sheets.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Subject tabs */}
+              <div>
+                <p className={`text-xs font-black uppercase tracking-widest mb-2 ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                  Subject
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {SUBJECTS.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => setSheetSubject(s.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-colors ${
+                        sheetSubject === s.id
+                          ? "bg-sky-600 text-white"
+                          : isDarkMode
+                            ? "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Level tabs */}
+              <div>
+                <p className={`text-xs font-black uppercase tracking-widest mb-2 ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                  Level
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {["National 5", "Higher", "Advanced Higher"].map((lvl) => (
+                    <button
+                      key={lvl}
+                      onClick={() => setSheetLevel(lvl)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-colors ${
+                        sheetLevel === lvl
+                          ? "bg-sky-600 text-white"
+                          : isDarkMode
+                            ? "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {lvl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Upload cards */}
+              <div className="space-y-3">
+                {(["relationship", "data"] as SheetType[]).map((sheetType) => {
+                  const sheetKey = `${sheetType}_${sheetSubject}_${sheetLevel}`
+                  const existingSheet = loadAssessmentSheet(sheetType, sheetSubject, sheetLevel)
+                  const uploadStatus = sheetUploadStatus[sheetKey]
+                  const label = sheetType === "relationship" ? "Relationship Sheet" : "Data Sheet"
+
+                  return (
+                    <div key={`${sheetKey}-${sheetRefresh}`} className={`p-4 rounded-2xl border ${cardBg}`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-black text-sm">{label}</p>
+                          <p className={`text-xs ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                            {sheetSubject} · {sheetLevel}
+                          </p>
+                          {existingSheet && (
+                            <p className={`text-[11px] mt-1 ${isDarkMode ? "text-sky-400" : "text-sky-600"}`}>
+                              ✓ {existingSheet.fileName} · {new Date(existingSheet.uploadedAt).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {uploadStatus === "uploading" && (
+                            <RefreshCw className="w-4 h-4 animate-spin text-sky-500" />
+                          )}
+                          {uploadStatus === "done" && (
+                            <span className="text-sky-500 text-xs font-bold">Saved!</span>
+                          )}
+                          {uploadStatus === "error" && (
+                            <span className="text-red-500 text-xs font-bold">Error</span>
+                          )}
+                          {existingSheet && (
+                            <button
+                              onClick={() => {
+                                removeAssessmentSheet(sheetType, sheetSubject, sheetLevel)
+                                setSheetRefresh((n) => n + 1)
+                              }}
+                              className={`p-1.5 rounded-lg text-xs font-bold transition-colors ${
+                                isDarkMode ? "text-red-400 hover:bg-red-900/30" : "text-red-500 hover:bg-red-50"
+                              }`}
+                              title="Remove sheet"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <label className={`cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-colors ${
+                            existingSheet
+                              ? isDarkMode ? "bg-slate-700 hover:bg-slate-600 text-slate-300" : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                              : "bg-sky-600 hover:bg-sky-700 text-white"
+                          }`}>
+                            <Upload className="w-3.5 h-3.5" />
+                            {existingSheet ? "Replace" : "Upload"}
+                            <input
+                              type="file"
+                              accept={ASSESSMENT_SHEET_ACCEPT}
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0]
+                                if (!file) return
+                                setSheetUploadStatus((s) => ({ ...s, [sheetKey]: "uploading" }))
+                                try {
+                                  let content = ""
+                                  if (file.type.startsWith("image/")) {
+                                    // Store images as base64 data URLs for display
+                                    const arrayBuffer = await file.arrayBuffer()
+                                    const bytes = new Uint8Array(arrayBuffer)
+                                    let binary = ""
+                                    bytes.forEach((b) => { binary += String.fromCharCode(b) })
+                                    content = `data:${file.type};base64,${btoa(binary)}`
+                                  } else if (file.type === "application/pdf") {
+                                    // Extract readable text tokens from the PDF stream
+                                    const arrayBuffer = await file.arrayBuffer()
+                                    const uint8Array = new Uint8Array(arrayBuffer)
+                                    const text = new TextDecoder("latin1").decode(uint8Array)
+                                    const PDF_TOKEN_MAX_CHARS = 200
+                                    const matches = text.match(new RegExp(`\\(([^)]{2,${PDF_TOKEN_MAX_CHARS}})\\)`, "g")) ?? []
+                                    content = matches
+                                      .map((m) => m.slice(1, -1))
+                                      .filter((s) => /[a-zA-Z]/.test(s))
+                                      .join(" ")
+                                    if (content.length < 20) {
+                                      content = `[PDF: ${file.name}]`
+                                    }
+                                  } else {
+                                    content = await file.text()
+                                  }
+                                  saveAssessmentSheet(sheetType, sheetSubject, sheetLevel, {
+                                    fileName: file.name,
+                                    content,
+                                    uploadedAt: Date.now(),
+                                  })
+                                  setSheetUploadStatus((s) => ({ ...s, [sheetKey]: "done" }))
+                                  setSheetRefresh((n) => n + 1)
+                                  setTimeout(() => setSheetUploadStatus((s) => ({ ...s, [sheetKey]: undefined })), 2000)
+                                } catch {
+                                  setSheetUploadStatus((s) => ({ ...s, [sheetKey]: "error" }))
+                                }
+                                e.target.value = ""
+                              }}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
   )
 }
-
-// --- Main App Logic ---
 
 export default function App() {
   const [view, setView] = useState<ViewType>("subject-select")
