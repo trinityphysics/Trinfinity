@@ -1,6 +1,10 @@
 "use client"
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
+import * as n5_2021_s2 from "@/data/past-papers/n5-2021-section2"
+import * as n5_2022_s2 from "@/data/past-papers/n5-2022-section2"
+import * as n5_2023_s2 from "@/data/past-papers/n5-2023-section2"
+import * as n5_2024_s2 from "@/data/past-papers/n5-2024-section2"
 import * as n5_2025_s2 from "@/data/past-papers/n5-2025-section2"
 import {
   ChevronLeft,
@@ -187,6 +191,30 @@ const PAST_PAPER_BANKS: Record<string, PastPaperMeta[]> = {
       label: "N5 2025 — Section 2",
       source: n5_2025_s2.source,
       questions: n5_2025_s2.questions as unknown as Question[],
+    },
+    {
+      id: "n5-2024-s2",
+      label: "N5 2024 — Section 2",
+      source: n5_2024_s2.source,
+      questions: n5_2024_s2.questions as unknown as Question[],
+    },
+    {
+      id: "n5-2023-s2",
+      label: "N5 2023 — Section 2",
+      source: n5_2023_s2.source,
+      questions: n5_2023_s2.questions as unknown as Question[],
+    },
+    {
+      id: "n5-2022-s2",
+      label: "N5 2022 — Section 2",
+      source: n5_2022_s2.source,
+      questions: n5_2022_s2.questions as unknown as Question[],
+    },
+    {
+      id: "n5-2021-s2",
+      label: "N5 2021 — Section 2",
+      source: n5_2021_s2.source,
+      questions: n5_2021_s2.questions as unknown as Question[],
     },
   ],
 }
