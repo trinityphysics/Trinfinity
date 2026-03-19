@@ -232,7 +232,46 @@ interface UserAccount {
   email: string
   accountType: AccountType
   password?: string
+  isTestAccount?: boolean
 }
+
+// Hardcoded test accounts — always available regardless of localStorage state.
+// Password format "test:<plaintext>" is recognised by verifyPassword below.
+const TEST_ACCOUNT_PASSWORD = "Trinfinity1"
+const TEST_ACCOUNTS: UserAccount[] = [
+  {
+    id: "test-pupil-1",
+    name: "Test Pupil One",
+    email: "testpupil1@trinfinity.test",
+    accountType: "pupil",
+    password: `test:${TEST_ACCOUNT_PASSWORD}`,
+    isTestAccount: true,
+  },
+  {
+    id: "test-pupil-2",
+    name: "Test Pupil Two",
+    email: "testpupil2@trinfinity.test",
+    accountType: "pupil",
+    password: `test:${TEST_ACCOUNT_PASSWORD}`,
+    isTestAccount: true,
+  },
+  {
+    id: "test-teacher-1",
+    name: "Test Teacher One",
+    email: "testteacher1@trinfinity.test",
+    accountType: "teacher",
+    password: `test:${TEST_ACCOUNT_PASSWORD}`,
+    isTestAccount: true,
+  },
+  {
+    id: "test-teacher-2",
+    name: "Test Teacher Two",
+    email: "testteacher2@trinfinity.test",
+    accountType: "teacher",
+    password: `test:${TEST_ACCOUNT_PASSWORD}`,
+    isTestAccount: true,
+  },
+]
 
 interface ClassGroup {
   id: string
@@ -273,6 +312,10 @@ async function hashPassword(password: string): Promise<string> {
 }
 
 async function verifyPassword(password: string, stored: string): Promise<boolean> {
+  // Test accounts use a plain-text prefix instead of PBKDF2
+  if (stored.startsWith("test:")) {
+    return password === stored.slice(5)
+  }
   if (typeof crypto === "undefined" || !crypto.subtle) {
     throw new Error("Secure password verification is not available in this environment.")
   }
@@ -306,17 +349,22 @@ function generateClassCode(): string {
 }
 
 function loadAccounts(): UserAccount[] {
-  if (typeof window === "undefined") return []
+  if (typeof window === "undefined") return TEST_ACCOUNTS
   try {
-    return JSON.parse(localStorage.getItem("trinfinity_accounts") || "[]")
+    const stored: UserAccount[] = JSON.parse(localStorage.getItem("trinfinity_accounts") || "[]")
+    // Always include the hardcoded test accounts, then any non-test user accounts
+    const userAccounts = stored.filter((a) => !a.isTestAccount)
+    return [...TEST_ACCOUNTS, ...userAccounts]
   } catch {
-    return []
+    return TEST_ACCOUNTS
   }
 }
 
 function saveAccounts(accounts: UserAccount[]): void {
   if (typeof window === "undefined") return
-  localStorage.setItem("trinfinity_accounts", JSON.stringify(accounts))
+  // Never persist test accounts to localStorage — they are always injected at load time
+  const userAccounts = accounts.filter((a) => !a.isTestAccount)
+  localStorage.setItem("trinfinity_accounts", JSON.stringify(userAccounts))
 }
 
 function loadCurrentUser(): UserAccount | null {
@@ -4412,6 +4460,28 @@ function AuthModal({
               <LogIn className="w-4 h-4" />
               Sign In
             </button>
+
+            {/* Demo / Test Accounts */}
+            <div className={`mt-2 rounded-xl border p-3 ${isDarkMode ? "border-slate-700 bg-slate-800/50" : "border-slate-200 bg-slate-50"}`}>
+              <p className="text-xs font-semibold text-slate-500 mb-2">Demo accounts (password: <span className="font-mono">{TEST_ACCOUNT_PASSWORD}</span>)</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {TEST_ACCOUNTS.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => { setEmail(a.email); setPassword(TEST_ACCOUNT_PASSWORD); }}
+                    className={`text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
+                      a.accountType === "teacher"
+                        ? isDarkMode ? "bg-amber-900/30 hover:bg-amber-900/50 text-amber-300" : "bg-amber-50 hover:bg-amber-100 text-amber-700"
+                        : isDarkMode ? "bg-[#800000]/20 hover:bg-[#800000]/40 text-red-300" : "bg-red-50 hover:bg-red-100 text-[#800000]"
+                    }`}
+                  >
+                    <span className="font-semibold block">{a.name}</span>
+                    <span className="opacity-70">{a.accountType}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </form>
         ) : (
           <form onSubmit={handleSignUp} className="flex flex-col gap-4">
