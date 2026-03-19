@@ -125,9 +125,9 @@ const QA_SUBTOPICS: Record<string, string[]> = {
   ],
 }
 
-type AppMode = "mc" | "paper" | "retrieval" | "definitions" | "calculations" | "assignment" | "practice" | null
+type AppMode = "mc" | "paper" | "retrieval" | "definitions" | "calculations" | "assignment" | "practice" | "exam-paper" | null
 type TimingMode = "relaxed" | "exam" | "none"
-type ViewType = "subject-select" | "landing" | "mode" | "setup" | "quiz" | "results" | "definitions" | "calculations" | "assignment"
+type ViewType = "subject-select" | "landing" | "mode" | "setup" | "quiz" | "results" | "definitions" | "calculations" | "assignment" | "exam-paper"
 
 type SubjectId = "Physics" | "Biology" | "Chemistry" | "Practical Electronics"
 
@@ -153,6 +153,7 @@ interface MCQuestion {
   options: string[]
   answer: number
   explanation: string
+  sourcePaperId?: string
 }
 
 interface PaperPart {
@@ -172,6 +173,7 @@ interface PaperQuestion {
   subtopic: string
   question: string
   parts: PaperPart[]
+  sourcePaperId?: string
 }
 
 type Question = MCQuestion | PaperQuestion
@@ -713,9 +715,18 @@ function saveDefProgress(level: string, progress: Record<string, DefProgress>) {
 
 // --- Per-user progress helpers ---
 
+interface PaperAttempt {
+  date: number
+  timeTakenSeconds: number
+  marksEarned: number
+  marksTotal: number
+  partMarks: Record<string, number>
+}
+
 interface ExamProgress {
   mc: Record<string, { correct: number; total: number }>
   paper: Record<string, { correct: number; total: number }>
+  pastPapers: Record<string, PaperAttempt[]>
 }
 
 interface CalcProgress {
@@ -746,10 +757,12 @@ function saveUserDefProgress(userId: string, level: string, progress: Record<str
 
 function loadUserExamProgress(userId: string, level: string): ExamProgress {
   try {
-    if (typeof window === "undefined") return { mc: {}, paper: {} }
+    if (typeof window === "undefined") return { mc: {}, paper: {}, pastPapers: {} }
     const saved = localStorage.getItem(`trinfinity_exam_progress_${userId}_${level}`)
-    return saved ? JSON.parse(saved) : { mc: {}, paper: {} }
-  } catch { return { mc: {}, paper: {} } }
+    if (!saved) return { mc: {}, paper: {}, pastPapers: {} }
+    const data = JSON.parse(saved)
+    return { mc: data.mc ?? {}, paper: data.paper ?? {}, pastPapers: data.pastPapers ?? {} }
+  } catch { return { mc: {}, paper: {}, pastPapers: {} } }
 }
 
 function saveUserExamProgress(userId: string, level: string, progress: ExamProgress): void {
@@ -5089,6 +5102,842 @@ function Landing({
   )
 }
 
+// ─── ExamPaperMode ────────────────────────────────────────────────────────────
+
+function ExamPaperMode({
+  selectedLevel,
+  onBack,
+  isDarkMode,
+  currentUserId,
+}: {
+  selectedLevel: string
+  onBack: () => void
+  isDarkMode: boolean
+  currentUserId: string | undefined
+}) {
+  type ExamPhase = "hub" | "exam" | "review" | "results"
+
+  const [phase, setPhase] = useState<ExamPhase>("hub")
+  const [selectedPaper, setSelectedPaper] = useState<PastPaperMeta | null>(null)
+  const [currentQIdx, setCurrentQIdx] = useState(0)
+  const [examAnswers, setExamAnswers] = useState<Record<string, string>>({})
+  const [examMarks, setExamMarks] = useState<Record<string, number>>({})
+  const [timeLeft, setTimeLeft] = useState(0)
+  const [examStartTime, setExamStartTime] = useState(0)
+  const [timeTaken, setTimeTaken] = useState(0)
+  const [showSubmitDialog, setShowSubmitDialog] = useState(false)
+  const [resultsSaved, setResultsSaved] = useState(false)
+
+  const papers = PAST_PAPER_BANKS[selectedLevel] || []
+
+  const totalMarks = useMemo(() => {
+    if (!selectedPaper) return 0
+    return selectedPaper.questions.reduce((sum, q) => {
+      if (q.type === "paper") return sum + q.parts.reduce((s, p) => s + p.marks, 0)
+      return sum + 1
+    }, 0)
+  }, [selectedPaper])
+
+  // Countdown timer
+  useEffect(() => {
+    if (phase !== "exam") return
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => Math.max(0, prev - 1))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [phase])
+
+  const startExam = (paper: PastPaperMeta) => {
+    const paperTotalMarks = paper.questions.reduce((sum, q) => {
+      if (q.type === "paper") return sum + q.parts.reduce((s, p) => s + p.marks, 0)
+      return sum + 1
+    }, 0)
+    setSelectedPaper(paper)
+    setCurrentQIdx(0)
+    setExamAnswers({})
+    setExamMarks({})
+    setExamStartTime(Date.now())
+    setTimeTaken(0)
+    setTimeLeft(Math.round(paperTotalMarks * (60 / 0.9)))
+    setShowSubmitDialog(false)
+    setResultsSaved(false)
+    setPhase("exam")
+  }
+
+  const submitExam = () => {
+    const taken = Math.round((Date.now() - examStartTime) / 1000)
+    setTimeTaken(taken)
+    setPhase("review")
+  }
+
+  const attemptedQuestions = useMemo(() => {
+    if (!selectedPaper) return new Set<number>()
+    const attempted = new Set<number>()
+    selectedPaper.questions.forEach((q, qIdx) => {
+      if (q.type === "paper") {
+        const hasAnswer = q.parts.some((_, pIdx) => {
+          const ans = examAnswers[`${qIdx}-${pIdx}`]
+          return ans && ans.trim().length > 0
+        })
+        if (hasAnswer) attempted.add(qIdx)
+      }
+    })
+    return attempted
+  }, [selectedPaper, examAnswers])
+
+  const totalEarned = useMemo(() => {
+    if (!selectedPaper) return 0
+    let sum = 0
+    selectedPaper.questions.forEach((q, qIdx) => {
+      if (q.type === "paper") {
+        q.parts.forEach((_, pIdx) => {
+          sum += examMarks[`${qIdx}-${pIdx}`] ?? 0
+        })
+      }
+    })
+    return sum
+  }, [selectedPaper, examMarks])
+
+  const topicBreakdown = useMemo(() => {
+    if (!selectedPaper) return []
+    const breakdown: Record<string, { earned: number; total: number }> = {}
+    selectedPaper.questions.forEach((q, qIdx) => {
+      if (q.type === "paper") {
+        const topic = q.subtopic || q.topic
+        if (!breakdown[topic]) breakdown[topic] = { earned: 0, total: 0 }
+        q.parts.forEach((p, pIdx) => {
+          breakdown[topic].total += p.marks
+          breakdown[topic].earned += examMarks[`${qIdx}-${pIdx}`] ?? 0
+        })
+      }
+    })
+    return Object.entries(breakdown).map(([topic, { earned, total }]) => ({
+      topic,
+      earned,
+      total,
+      pct: total > 0 ? Math.round((earned / total) * 100) : 0,
+    }))
+  }, [selectedPaper, examMarks])
+
+  const percentage = totalMarks > 0 ? Math.round((totalEarned / totalMarks) * 100) : 0
+  const grade = percentage >= 70 ? "A" : percentage >= 60 ? "B" : percentage >= 50 ? "C" : percentage >= 40 ? "D" : "NA"
+
+  function getPaperAttempts(paperId: string): PaperAttempt[] {
+    if (!currentUserId) return []
+    const progress = loadUserExamProgress(currentUserId, selectedLevel)
+    return progress.pastPapers?.[paperId] ?? []
+  }
+
+  function saveAttempt() {
+    if (!currentUserId || !selectedPaper || resultsSaved) return
+    const attempt: PaperAttempt = {
+      date: Date.now(),
+      timeTakenSeconds: timeTaken,
+      marksEarned: totalEarned,
+      marksTotal: totalMarks,
+      partMarks: { ...examMarks },
+    }
+    const existing = loadUserExamProgress(currentUserId, selectedLevel)
+    const paperId = selectedPaper.id
+    existing.pastPapers = {
+      ...existing.pastPapers,
+      [paperId]: [...(existing.pastPapers?.[paperId] ?? []), attempt],
+    }
+    selectedPaper.questions.forEach((q, qIdx) => {
+      if (q.type === "paper") {
+        const topic = q.subtopic || q.topic
+        if (!existing.paper[topic]) existing.paper[topic] = { correct: 0, total: 0 }
+        q.parts.forEach((p, pIdx) => {
+          existing.paper[topic].total += p.marks
+          existing.paper[topic].correct += examMarks[`${qIdx}-${pIdx}`] ?? 0
+        })
+      }
+    })
+    saveUserExamProgress(currentUserId, selectedLevel, existing)
+    setResultsSaved(true)
+  }
+
+  const cardBg = isDarkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"
+
+  // ── Hub Phase ────────────────────────────────────────────────────────────
+  if (phase === "hub") {
+    return (
+      <div className="pt-24 min-h-screen p-6 animate-in fade-in slide-in-from-right-4">
+        <div className="max-w-4xl mx-auto">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 text-slate-500 hover:text-[#800000] mb-8 font-bold uppercase text-xs tracking-widest"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Mode selection
+          </button>
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-3 px-6 py-3 bg-[#800000] text-white rounded-full font-black text-sm uppercase tracking-widest mb-6">
+              <FileText className="w-4 h-4" />
+              Exam Mode
+            </div>
+            <h2 className="text-4xl font-black mb-3">Choose Your Paper</h2>
+            <p className={`text-lg ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}>
+              Select a past paper to attempt under timed exam conditions.
+            </p>
+          </div>
+          {papers.length === 0 ? (
+            <div className={`p-8 rounded-3xl border text-center ${cardBg}`}>
+              <p className="text-slate-400 font-bold">No past papers available for {selectedLevel}.</p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-6">
+              {papers.map((paper) => {
+                const paperTotalMarks = paper.questions.reduce((sum, q) => {
+                  if (q.type === "paper") return sum + q.parts.reduce((s, p) => s + p.marks, 0)
+                  return sum + 1
+                }, 0)
+                const minutes = Math.floor(Math.round(paperTotalMarks * (60 / 0.9)) / 60)
+                const prevAttempts = getPaperAttempts(paper.id)
+                const bestPct =
+                  prevAttempts.length > 0
+                    ? Math.max(
+                        ...prevAttempts.map((a) =>
+                          a.marksTotal > 0 ? Math.round((a.marksEarned / a.marksTotal) * 100) : 0
+                        )
+                      )
+                    : null
+                const year = paper.id.match(/\d{4}/)?.[0] ?? ""
+                return (
+                  <button
+                    key={paper.id}
+                    onClick={() => startExam(paper)}
+                    className={`text-left p-8 rounded-3xl border-2 transition-all hover:border-[#800000] hover:shadow-xl ${cardBg}`}
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="text-4xl font-black text-[#800000]">{year}</div>
+                      {bestPct !== null && (
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-black ${
+                            bestPct >= 70
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                              : bestPct >= 50
+                                ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                          }`}
+                        >
+                          Best: {bestPct}%
+                        </span>
+                      )}
+                    </div>
+                    <p className="font-black text-lg mb-1">{paper.label}</p>
+                    <div className={`flex items-center gap-4 text-sm ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                      <span>{paper.questions.length} questions</span>
+                      <span>•</span>
+                      <span>{paperTotalMarks} marks</span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {minutes} min
+                      </span>
+                    </div>
+                    {prevAttempts.length > 0 && (
+                      <p className={`text-xs mt-2 ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+                        {prevAttempts.length} previous attempt{prevAttempts.length !== 1 ? "s" : ""}
+                      </p>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Exam Phase ───────────────────────────────────────────────────────────
+  if (phase === "exam" && selectedPaper) {
+    const q = selectedPaper.questions[currentQIdx] as PaperQuestion
+    const mins = Math.floor(timeLeft / 60)
+    const secs = timeLeft % 60
+    const timeWarning = timeLeft < 300
+    const timeExpired = timeLeft === 0
+    const totalQ = selectedPaper.questions.length
+
+    return (
+      <div className="min-h-screen pb-40">
+        {/* Fixed exam header */}
+        <div
+          className={`fixed top-0 left-0 right-0 z-50 px-6 py-4 border-b-2 ${
+            isDarkMode ? "bg-slate-900/95 border-slate-800" : "bg-white/95 border-slate-100"
+          } backdrop-blur-xl`}
+        >
+          <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                Exam Mode
+              </p>
+              <h2 className="font-black text-[#800000] dark:text-red-400 truncate">{selectedPaper.label}</h2>
+            </div>
+            <div
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl border-2 shrink-0 ${
+                timeExpired
+                  ? "bg-red-100 dark:bg-red-900/20 border-red-500 text-red-600 dark:text-red-400"
+                  : timeWarning
+                    ? "bg-amber-50 dark:bg-amber-900/20 border-amber-500 text-amber-700 dark:text-amber-400"
+                    : isDarkMode
+                      ? "bg-slate-800 border-slate-700 text-slate-200"
+                      : "bg-slate-50 border-slate-200 text-slate-700"
+              }`}
+            >
+              <Clock className="w-4 h-4" />
+              <span className="font-black text-xl">
+                {timeExpired ? "Time Up!" : `${mins}:${String(secs).padStart(2, "0")}`}
+              </span>
+            </div>
+            <button
+              onClick={() => setShowSubmitDialog(true)}
+              className="shrink-0 px-6 py-2.5 bg-[#800000] text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-red-800 transition-colors"
+            >
+              Submit Paper
+            </button>
+          </div>
+        </div>
+
+        <div className="max-w-5xl mx-auto px-6 pt-28 flex gap-6">
+          {/* Question navigator */}
+          <div className={`w-44 shrink-0 sticky top-28 self-start p-4 rounded-3xl border-2 ${cardBg}`}>
+            <p className={`text-xs font-black uppercase tracking-widest mb-3 ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+              Questions
+            </p>
+            <div className="grid grid-cols-4 gap-1.5">
+              {selectedPaper.questions.map((_, idx) => {
+                const isAttempted = attemptedQuestions.has(idx)
+                const isCurrent = idx === currentQIdx
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => setCurrentQIdx(idx)}
+                    className={`h-8 w-8 rounded-xl text-xs font-black transition-all ${
+                      isCurrent
+                        ? "bg-[#800000] text-white scale-110 shadow-lg"
+                        : isAttempted
+                          ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700"
+                          : isDarkMode
+                            ? "bg-slate-700 text-slate-300 border border-slate-600"
+                            : "bg-slate-100 text-slate-500 border border-slate-200"
+                    }`}
+                  >
+                    {idx + 1}
+                  </button>
+                )
+              })}
+            </div>
+            <div className={`mt-4 space-y-1.5 text-[10px] font-bold ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded bg-[#800000] inline-block" />
+                Current
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded bg-emerald-200 dark:bg-emerald-800 inline-block" />
+                Attempted
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`w-3 h-3 rounded inline-block ${isDarkMode ? "bg-slate-700" : "bg-slate-200"}`} />
+                Not yet
+              </div>
+            </div>
+            <p className={`mt-4 text-[10px] font-black ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+              {attemptedQuestions.size}/{totalQ} attempted
+            </p>
+          </div>
+
+          {/* Question display */}
+          <div className="flex-1 min-w-0">
+            <div className={`rounded-[2.5rem] p-8 shadow-xl border-2 mb-6 ${cardBg}`}>
+              <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl font-black text-[#800000] dark:text-red-400">Q{currentQIdx + 1}</span>
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-black ${
+                      isDarkMode ? "bg-slate-700 text-slate-300" : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {q.subtopic || q.topic}
+                  </span>
+                </div>
+                <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700">
+                  {q.type === "paper" ? q.parts.reduce((s, p) => s + p.marks, 0) : 1} marks
+                </span>
+              </div>
+              <p className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-8 leading-relaxed">{q.question}</p>
+              {q.type === "paper" && (
+                <div className="space-y-6">
+                  {q.parts.map((part, pIdx) => (
+                    <div
+                      key={part.id}
+                      className={`p-6 rounded-[2rem] border-2 ${
+                        isDarkMode ? "bg-slate-900/50 border-slate-800" : "bg-slate-50 border-slate-100"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3 mb-4">
+                        <div className="flex items-center gap-3">
+                          <span className="w-9 h-9 rounded-full bg-[#800000] text-white flex items-center justify-center font-black text-xs shrink-0">
+                            {part.id}
+                          </span>
+                          <p className="font-bold text-slate-700 dark:text-slate-200">{part.text}</p>
+                        </div>
+                        <span className="shrink-0 text-xs font-black px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 rounded-full">
+                          {part.marks} mark{part.marks !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <textarea
+                        placeholder="Enter your answer here..."
+                        className={`w-full p-4 rounded-2xl border-2 focus:ring-4 ring-red-500/10 focus:border-[#800000] outline-none transition-all font-medium resize-none ${
+                          isDarkMode
+                            ? "border-slate-700 bg-slate-800 text-slate-100 placeholder-slate-500"
+                            : "border-slate-200 bg-white text-slate-800 placeholder-slate-400"
+                        }`}
+                        rows={3}
+                        value={examAnswers[`${currentQIdx}-${pIdx}`] || ""}
+                        onChange={(e) =>
+                          setExamAnswers((prev) => ({ ...prev, [`${currentQIdx}-${pIdx}`]: e.target.value }))
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Navigation */}
+            <div className="flex justify-between">
+              <button
+                disabled={currentQIdx === 0}
+                onClick={() => setCurrentQIdx((i) => i - 1)}
+                className="flex items-center gap-2 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
+                Previous
+              </button>
+              <button
+                disabled={currentQIdx === totalQ - 1}
+                onClick={() => setCurrentQIdx((i) => i + 1)}
+                className="flex items-center gap-2 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                Next
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Submit confirmation dialog */}
+        {showSubmitDialog && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <div
+              className={`w-full max-w-md rounded-[2.5rem] shadow-2xl border-4 border-[#800000] p-10 ${
+                isDarkMode ? "bg-slate-900" : "bg-white"
+              }`}
+            >
+              <h3 className="text-2xl font-black mb-2 text-center">Submit Paper?</h3>
+              <div
+                className={`text-center text-4xl font-black mb-6 ${timeWarning ? "text-amber-600" : "text-emerald-600"}`}
+              >
+                {mins}:{String(secs).padStart(2, "0")} remaining
+              </div>
+              <div className={`p-4 rounded-2xl mb-6 ${isDarkMode ? "bg-slate-800" : "bg-amber-50"}`}>
+                <p className="font-black text-sm text-amber-700 dark:text-amber-400 mb-3">Before you submit, check:</p>
+                <ul className={`text-sm space-y-2 ${isDarkMode ? "text-slate-300" : "text-slate-600"}`}>
+                  <li>✓ All questions have been attempted</li>
+                  <li>✓ Units are included in all numerical answers</li>
+                  <li>✓ Working is shown for calculation questions</li>
+                  <li>✓ You have reviewed any uncertain answers</li>
+                </ul>
+              </div>
+              <p className={`text-xs text-center mb-6 ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+                Attempted: {attemptedQuestions.size} / {totalQ} questions
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowSubmitDialog(false)}
+                  className={`flex-1 py-4 rounded-2xl font-black text-sm border-2 transition-colors ${
+                    isDarkMode
+                      ? "border-slate-700 hover:bg-slate-800"
+                      : "border-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  Continue Exam
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSubmitDialog(false)
+                    submitExam()
+                  }}
+                  className="flex-1 py-4 bg-[#800000] text-white rounded-2xl font-black text-sm hover:bg-red-800 transition-colors"
+                >
+                  Submit Now
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── Review Phase ─────────────────────────────────────────────────────────
+  if (phase === "review" && selectedPaper) {
+    return (
+      <div className="pt-24 min-h-screen pb-36">
+        <div className="max-w-4xl mx-auto px-6">
+          {/* Sticky total banner */}
+          <div
+            className={`sticky top-20 z-30 flex items-center justify-between p-4 rounded-2xl shadow-lg mb-8 border-2 ${cardBg}`}
+          >
+            <div>
+              <p className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                Mark Your Paper
+              </p>
+              <p className="font-black text-lg">{selectedPaper.label}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-3xl font-black text-[#800000] dark:text-red-400">
+                {totalEarned}
+                <span className={`text-xl ${isDarkMode ? "text-slate-500" : "text-slate-300"}`}>/{totalMarks}</span>
+              </p>
+              <p className={`text-xs font-black ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>{percentage}%</p>
+            </div>
+          </div>
+
+          {/* Questions with marking scheme */}
+          <div className="space-y-10">
+            {selectedPaper.questions.map((q, qIdx) => {
+              if (q.type !== "paper") return null
+              const pq = q as PaperQuestion
+              return (
+                <div key={qIdx} className={`rounded-[2.5rem] p-8 border-2 shadow-xl ${cardBg}`}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="text-xl font-black text-[#800000] dark:text-red-400">Q{qIdx + 1}</span>
+                    <span className={`text-xs font-bold uppercase tracking-widest ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                      {pq.subtopic || pq.topic}
+                    </span>
+                  </div>
+                  <p className="text-xl font-bold mb-8 leading-relaxed">{pq.question}</p>
+                  {pq.parts.map((part, pIdx) => {
+                    const key = `${qIdx}-${pIdx}`
+                    const userAnswer = examAnswers[key]
+                    const currentMark = examMarks[key] ?? 0
+                    return (
+                      <div
+                        key={part.id}
+                        className={`mb-6 p-6 rounded-[2rem] border-2 ${
+                          isDarkMode ? "bg-slate-900/50 border-slate-800" : "bg-slate-50 border-slate-100"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                          <div className="flex items-center gap-3">
+                            <span className="w-9 h-9 rounded-full bg-[#800000] text-white flex items-center justify-center font-black text-xs shrink-0">
+                              {part.id}
+                            </span>
+                            <p className="font-bold text-slate-700 dark:text-slate-200">{part.text}</p>
+                          </div>
+                          <span className="shrink-0 text-xs font-black px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 rounded-full">
+                            {part.marks} mark{part.marks !== 1 ? "s" : ""}
+                          </span>
+                        </div>
+
+                        {/* User's answer */}
+                        {userAnswer ? (
+                          <div
+                            className={`p-4 rounded-xl mb-4 text-sm font-medium border ${
+                              isDarkMode
+                                ? "bg-slate-800 border-slate-700 text-slate-300"
+                                : "bg-white border-slate-200 text-slate-700"
+                            }`}
+                          >
+                            <p className={`text-xs font-black uppercase mb-1 ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+                              Your Answer:
+                            </p>
+                            <p>{userAnswer}</p>
+                          </div>
+                        ) : (
+                          <div className={`p-4 rounded-xl mb-4 text-sm italic ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+                            No answer provided
+                          </div>
+                        )}
+
+                        {/* Model answer + marking scheme */}
+                        <div className="p-4 bg-white dark:bg-slate-900 border-4 border-[#800000] rounded-[1.5rem] mb-4">
+                          <div className="flex items-center gap-2 mb-2 text-[#800000]">
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span className="text-xs font-black uppercase tracking-widest">Model Answer</span>
+                          </div>
+                          <p className="text-[#800000] dark:text-red-400 font-black text-lg leading-snug mb-3">
+                            {part.answer}
+                          </p>
+                          <div
+                            className={`text-xs italic border-l-4 border-amber-500 pl-3 py-1 ${
+                              isDarkMode ? "text-slate-400" : "text-slate-500"
+                            }`}
+                          >
+                            <span className="not-italic font-black text-slate-700 dark:text-slate-300 block mb-1">
+                              SQA Marking Instructions:
+                            </span>
+                            {part.markingScheme}
+                          </div>
+                        </div>
+
+                        {/* Mark selector */}
+                        <div>
+                          <p className="text-xs font-black uppercase mb-2 text-slate-400">
+                            Award marks:
+                          </p>
+                          <div className="flex gap-2">
+                            {[...Array(part.marks + 1)].map((_, mIdx) => (
+                              <button
+                                key={mIdx}
+                                onClick={() => setExamMarks((prev) => ({ ...prev, [key]: mIdx }))}
+                                className={`w-10 h-10 rounded-xl font-black text-sm transition-all border-2 ${
+                                  currentMark === mIdx
+                                    ? "bg-amber-500 text-white border-amber-600 scale-110 shadow-md"
+                                    : isDarkMode
+                                      ? "bg-slate-800 border-slate-700 hover:border-amber-500"
+                                      : "bg-white border-slate-200 hover:border-amber-500"
+                                }`}
+                              >
+                                {mIdx}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Fixed finalize bar */}
+          <div className="fixed bottom-0 left-0 right-0 p-6 flex justify-center z-40">
+            <div
+              className={`flex items-center gap-6 px-8 py-4 rounded-[2rem] shadow-2xl border-2 ${
+                isDarkMode ? "bg-slate-900 border-slate-700" : "bg-white border-slate-200"
+              }`}
+            >
+              <div className="text-right">
+                <p className="text-xs font-black uppercase text-slate-400">Total</p>
+                <p className="text-2xl font-black">
+                  {totalEarned}
+                  <span className={isDarkMode ? "text-slate-500" : "text-slate-400"}>/{totalMarks}</span>
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  saveAttempt()
+                  setPhase("results")
+                }}
+                className="px-10 py-4 bg-[#800000] text-white rounded-2xl font-black uppercase tracking-widest hover:bg-red-800 transition-colors"
+              >
+                Finalise Results
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Results Phase ────────────────────────────────────────────────────────
+  if (phase === "results" && selectedPaper) {
+    const gradeColor =
+      grade === "A"
+        ? "text-amber-500"
+        : grade === "B"
+          ? "text-emerald-600"
+          : grade === "C"
+            ? "text-blue-600"
+            : grade === "D"
+              ? "text-amber-700"
+              : "text-red-600"
+    const strengths = topicBreakdown.filter((t) => t.pct >= 70)
+    const weaknesses = topicBreakdown.filter((t) => t.pct < 50)
+    const takenMins = Math.floor(timeTaken / 60)
+    const takenSecs = timeTaken % 60
+
+    return (
+      <div className="pt-24 min-h-screen pb-20 animate-in fade-in zoom-in-95">
+        <div className="max-w-4xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <div className="inline-block p-8 rounded-[2rem] bg-red-50 dark:bg-red-950/20 mb-6 border-4 border-[#800000] shadow-2xl">
+              <Award className="w-16 h-16 text-[#800000]" />
+            </div>
+            <h1 className="text-5xl font-black mb-3">{selectedPaper.label}</h1>
+            <p className={`font-bold uppercase tracking-widest ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+              Exam Complete
+            </p>
+          </div>
+
+          {/* Grade cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+            {[
+              { label: "Grade", value: grade, color: gradeColor },
+              { label: "Marks", value: `${totalEarned}/${totalMarks}`, color: isDarkMode ? "text-white" : "text-slate-800" },
+              { label: "Percentage", value: `${percentage}%`, color: "text-[#800000] dark:text-red-400" },
+              {
+                label: "Time Taken",
+                value: `${takenMins}:${String(takenSecs).padStart(2, "0")}`,
+                color: isDarkMode ? "text-slate-300" : "text-slate-600",
+              },
+            ].map(({ label, value, color }) => (
+              <div
+                key={label}
+                className={`p-6 rounded-[2rem] border-2 text-center ${isDarkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200 shadow-xl"}`}
+              >
+                <p className="text-xs font-black uppercase tracking-widest mb-2 text-slate-400">
+                  {label}
+                </p>
+                <p className={`text-3xl font-black ${color}`}>{value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Grade boundaries */}
+          <div className={`p-6 rounded-3xl border-2 mb-8 ${isDarkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"}`}>
+            <p className="text-xs font-black uppercase tracking-widest mb-4 text-slate-400">
+              Grade Boundaries
+            </p>
+            <div className="flex gap-2">
+              {[
+                { label: "A", range: "70%+", active: grade === "A", color: "bg-amber-500" },
+                { label: "B", range: "60–69%", active: grade === "B", color: "bg-emerald-500" },
+                { label: "C", range: "50–59%", active: grade === "C", color: "bg-blue-500" },
+                { label: "D", range: "40–49%", active: grade === "D", color: "bg-amber-600" },
+                { label: "NA", range: "<40%", active: grade === "NA", color: "bg-red-500" },
+              ].map(({ label, range, active, color }) => (
+                <div
+                  key={label}
+                  className={`flex-1 p-3 rounded-2xl text-center border-2 transition-all ${
+                    active
+                      ? `${color} text-white border-transparent scale-105 shadow-md`
+                      : isDarkMode
+                        ? "border-slate-700 text-slate-400"
+                        : "border-slate-100 text-slate-400"
+                  }`}
+                >
+                  <p className="font-black text-lg">{label}</p>
+                  <p className="text-xs">{range}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Topic breakdown */}
+          <div className={`p-8 rounded-3xl border-2 mb-8 ${isDarkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"}`}>
+            <h3 className="font-black text-lg mb-6 flex items-center gap-2">
+              <BarChart2 className="w-5 h-5 text-amber-500" />
+              Topic Breakdown
+            </h3>
+            <div className="space-y-4">
+              {topicBreakdown.map(({ topic, earned, total, pct: topicPct }) => (
+                <div key={topic}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-bold">{topic}</span>
+                    <span
+                      className={`text-sm font-black ${
+                        topicPct >= 70 ? "text-emerald-600" : topicPct >= 50 ? "text-amber-600" : "text-red-600"
+                      }`}
+                    >
+                      {earned}/{total} ({topicPct}%)
+                    </span>
+                  </div>
+                  <div className={`h-2.5 rounded-full ${isDarkMode ? "bg-slate-700" : "bg-slate-100"}`}>
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        topicPct >= 70 ? "bg-emerald-500" : topicPct >= 50 ? "bg-amber-500" : "bg-red-500"
+                      }`}
+                      style={{ width: `${topicPct}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Strengths and Weaknesses */}
+          <div className="grid md:grid-cols-2 gap-6 mb-8">
+            <div className={`p-6 rounded-3xl border-2 ${isDarkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"}`}>
+              <h4 className="font-black text-sm uppercase tracking-widest text-emerald-600 mb-4 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" />
+                Strengths
+              </h4>
+              {strengths.length > 0 ? (
+                <ul className="space-y-2">
+                  {strengths.map((t) => (
+                    <li key={t.topic} className="flex items-center gap-2 text-sm font-bold">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      {t.topic} ({t.pct}%)
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className={`text-sm ${isDarkMode ? "text-slate-400" : "text-slate-400"}`}>Keep practising to build strengths!</p>
+              )}
+            </div>
+            <div className={`p-6 rounded-3xl border-2 ${isDarkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"}`}>
+              <h4 className="font-black text-sm uppercase tracking-widest text-red-600 mb-4 flex items-center gap-2">
+                <TrendingDown className="w-4 h-4" />
+                Areas to Improve
+              </h4>
+              {weaknesses.length > 0 ? (
+                <ul className="space-y-2">
+                  {weaknesses.map((t) => (
+                    <li key={t.topic} className="flex items-center gap-2 text-sm font-bold text-red-600 dark:text-red-400">
+                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                      {t.topic} ({t.pct}%)
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className={`text-sm ${isDarkMode ? "text-slate-400" : "text-slate-400"}`}>No significant weaknesses — great work!</p>
+              )}
+            </div>
+          </div>
+
+          {currentUserId && (
+            <div
+              className={`p-4 rounded-2xl border mb-8 text-center ${
+                isDarkMode
+                  ? "bg-emerald-900/20 border-emerald-800 text-emerald-400"
+                  : "bg-emerald-50 border-emerald-200 text-emerald-700"
+              }`}
+            >
+              <CheckCircle2 className="w-5 h-5 inline mr-2" />
+              <span className="text-sm font-bold">Results saved to your progress summary</span>
+            </div>
+          )}
+
+          <div className="flex gap-4 justify-center">
+            <button
+              onClick={() => setPhase("hub")}
+              className={`px-8 py-4 rounded-2xl font-black border-2 transition-colors ${
+                isDarkMode ? "border-slate-700 hover:bg-slate-800" : "border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              Back to Papers
+            </button>
+            <button
+              onClick={() => setPhase("review")}
+              className="px-8 py-4 bg-[#800000] text-white rounded-2xl font-black hover:bg-red-800 transition-colors"
+            >
+              Review Answers
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return null
+}
+
 function ModeSelection({
   onSelectMode,
   onBack,
@@ -5108,6 +5957,7 @@ function ModeSelection({
     { id: "calculations" as const, icon: Zap, title: "Calculations", desc: "Numerical problem solving" },
     { id: "assignment" as const, icon: ClipboardList, title: "Assignment", desc: "Structured task practice" },
     { id: "practice" as const, icon: BookOpen, title: "Practice", desc: "Progress-based adaptive practice" },
+    { id: "exam-paper" as const, icon: Award, title: "Exam Mode", desc: "Full past paper under timed conditions" },
   ]
 
   return (
@@ -6170,7 +7020,14 @@ function Quiz({
               <ChevronLeft className="w-5 h-5 text-[#800000]" />
             </button>
             <div>
-              <h2 className="text-lg font-black text-[#800000] dark:text-red-500 line-clamp-1">{q.topic}</h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-lg font-black text-[#800000] dark:text-red-500 line-clamp-1">{q.topic}</h2>
+                {q.sourcePaperId && (
+                  <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-widest bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full border border-amber-200 dark:border-amber-700 shrink-0">
+                    {q.sourcePaperId.match(/\d{4}/)?.[0] ?? q.sourcePaperId}
+                  </span>
+                )}
+              </div>
               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{q.subtopic}</p>
             </div>
           </div>
@@ -7390,6 +8247,109 @@ function GenericModal({
                   )
                 })}
               </div>
+
+              {/* Past Paper Year History */}
+              {currentUser && (() => {
+                const paperBanks = PAST_PAPER_BANKS[selectedLevel] || []
+                if (paperBanks.length === 0) return null
+                const examProg = loadUserExamProgress(currentUser.id, selectedLevel)
+                const hasAnyAttempts = paperBanks.some((p) => (examProg.pastPapers?.[p.id] ?? []).length > 0)
+                return (
+                  <div className="space-y-3">
+                    <p className="text-xs font-black uppercase tracking-widest text-amber-600 mb-2">Past Paper History</p>
+                    {paperBanks.map((paper) => {
+                      const attempts = examProg.pastPapers?.[paper.id] ?? []
+                      const year = paper.id.match(/\d{4}/)?.[0] ?? paper.label
+                      const paperTotalMarks = paper.questions.reduce((sum, q) => {
+                        if (q.type === "paper") return sum + q.parts.reduce((s, p) => s + p.marks, 0)
+                        return sum + 1
+                      }, 0)
+                      const bestPct =
+                        attempts.length > 0
+                          ? Math.max(...attempts.map((a) => (a.marksTotal > 0 ? Math.round((a.marksEarned / a.marksTotal) * 100) : 0)))
+                          : null
+                      const latestAttempt = attempts.length > 0 ? attempts[attempts.length - 1] : null
+                      const attemptedQs = latestAttempt
+                        ? new Set(
+                            Object.keys(latestAttempt.partMarks).map((k) => parseInt(k.split("-")[0]))
+                          )
+                        : new Set<number>()
+                      return (
+                        <div key={paper.id} className={`p-4 rounded-2xl border ${cardBg}`}>
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <p className="font-black text-base">{year} Paper</p>
+                              <p className={`text-xs ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+                                {attempts.length > 0
+                                  ? `${attempts.length} attempt${attempts.length !== 1 ? "s" : ""}`
+                                  : "Not attempted"}
+                              </p>
+                            </div>
+                            {bestPct !== null && (
+                              <p className={`text-xl font-black ${perfColor(bestPct)}`}>Best: {bestPct}%</p>
+                            )}
+                          </div>
+                          {/* Question attempt status for latest attempt */}
+                          <div className="mb-2">
+                            <p className={`text-[10px] font-black uppercase mb-1.5 ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+                              {latestAttempt ? "Latest attempt — questions:" : "No attempts yet"}
+                            </p>
+                            <div className="flex flex-wrap gap-1">
+                              {paper.questions.map((_, idx) => (
+                                <span
+                                  key={idx}
+                                  className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black ${
+                                    attemptedQs.has(idx)
+                                      ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700"
+                                      : isDarkMode
+                                        ? "bg-slate-700 text-slate-500 border border-slate-600"
+                                        : "bg-slate-100 text-slate-400 border border-slate-200"
+                                  }`}
+                                >
+                                  {idx + 1}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          {/* Mark history */}
+                          {attempts.length > 0 && (
+                            <div className="mt-2">
+                              <p className={`text-[10px] font-black uppercase mb-1 ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+                                Mark history ({paperTotalMarks} total marks):
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {attempts.map((a, i) => {
+                                  const p = a.marksTotal > 0 ? Math.round((a.marksEarned / a.marksTotal) * 100) : 0
+                                  return (
+                                    <span
+                                      key={i}
+                                      title={`${a.marksEarned}/${a.marksTotal} marks — ${new Date(a.date).toLocaleDateString()}`}
+                                      className={`text-xs font-black px-2 py-0.5 rounded-full ${
+                                        p >= 70
+                                          ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
+                                          : p >= 50
+                                            ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
+                                            : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
+                                      }`}
+                                    >
+                                      {a.marksEarned}/{a.marksTotal} ({p}%)
+                                    </span>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                    {!hasAnyAttempts && (
+                      <p className={`text-sm text-center py-2 ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+                        Complete a past paper in Exam Mode to see your history here.
+                      </p>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           )}
 
@@ -7822,6 +8782,8 @@ export default function App() {
       setView("calculations")
     } else if (mode === "assignment") {
       setView("assignment")
+    } else if (mode === "exam-paper") {
+      setView("exam-paper")
     } else {
       setView("setup")
     }
@@ -7881,7 +8843,9 @@ export default function App() {
     // Load from all past paper banks when in paper mode
     if (appMode === "paper") {
       const banks = PAST_PAPER_BANKS[selectedLevel] || []
-      const allPaperQuestions = banks.flatMap(bank => bank.questions)
+      const allPaperQuestions = banks.flatMap((bank) =>
+        bank.questions.map((q) => ({ ...q, sourcePaperId: bank.id }))
+      )
       if (allPaperQuestions.length > 0) {
         const selectedTopicsList = topicString.split(",").filter(Boolean)
         const topicsSet = new Set(selectedTopicsList)
@@ -8170,6 +9134,14 @@ export default function App() {
             selectedLevel={selectedLevel}
             onBack={() => setView("mode")}
             isDarkMode={isDarkMode}
+          />
+        )}
+        {view === "exam-paper" && (
+          <ExamPaperMode
+            selectedLevel={selectedLevel}
+            onBack={() => setView("mode")}
+            isDarkMode={isDarkMode}
+            currentUserId={currentUser?.id}
           />
         )}
       </main>
