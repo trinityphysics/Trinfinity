@@ -5108,7 +5108,7 @@ function Landing({
   selectedSubject: SubjectId
   isDarkMode: boolean
 }) {
-  const levels = [
+  const allLevels = [
     { id: "National 5", desc: "SCQF Level 5 Fundamentals" },
     {
       id: "Higher",
@@ -5117,6 +5117,7 @@ function Landing({
     },
     { id: "Advanced Higher", desc: "SCQF Level 7 Calculus Based" },
   ]
+  const levels = selectedSubject === "Practical Electronics" ? allLevels.slice(0, 1) : allLevels
 
   const subjectInfo = SUBJECTS.find((s) => s.id === selectedSubject)!
 
@@ -6082,6 +6083,7 @@ interface WeakTopic {
 
 function SetupView({
   selectedLevel,
+  selectedSubject,
   appMode,
   onGenerate,
   isGenerating,
@@ -6105,6 +6107,7 @@ function SetupView({
   availablePastPapers,
 }: {
   selectedLevel: string
+  selectedSubject: SubjectId
   appMode: AppMode
   onGenerate: (topics: string) => void
   isGenerating: boolean
@@ -6131,6 +6134,24 @@ function SetupView({
   const subtopics = QA_SUBTOPICS[selectedLevel] || []
   const isPracticeOrMC = appMode === "mc" || appMode === "practice"
   const topicsToShow = subtopics
+
+  const timingOptions: { value: TimingMode; label: string; desc: string }[] =
+    selectedSubject === "Chemistry" || selectedSubject === "Biology"
+      ? [
+          { value: "none", label: "No Time Limit", desc: "Take as long as you need" },
+          { value: "relaxed", label: "Relaxed", desc: "0.44 marks per minute (~2 min 16 sec/mark)" },
+          { value: "exam", label: "Exam Conditions", desc: "0.67 marks per minute (~90 sec/mark)" },
+        ]
+      : selectedSubject === "Practical Electronics"
+      ? [
+          { value: "relaxed", label: "Relaxed", desc: "0.67 marks per minute (~90 sec/mark)" },
+          { value: "exam", label: "Exam Conditions", desc: "1 mark per minute (60 sec/mark)" },
+        ]
+      : [
+          { value: "none", label: "No Time Limit", desc: "Take as long as you need" },
+          { value: "relaxed", label: "Relaxed", desc: "0.5 marks per minute (2 min/mark)" },
+          { value: "exam", label: "Exam Conditions", desc: "0.9 marks per minute (~67 sec/mark)" },
+        ]
 
   // Auto-select topics from coverage for retrieval mode
   useEffect(() => {
@@ -6361,11 +6382,7 @@ function SetupView({
               Timing
             </h3>
             <div className="space-y-3">
-              {[
-                { value: "none" as TimingMode, label: "No Time Limit", desc: "Take as long as you need" },
-                { value: "relaxed" as TimingMode, label: "Relaxed", desc: "0.5 marks per minute (2 min/mark)" },
-                { value: "exam" as TimingMode, label: "Exam Conditions", desc: "0.9 marks per minute (~67 sec/mark)" },
-              ].map((option) => (
+              {timingOptions.map((option) => (
                 <label
                   key={option.value}
                   className={`flex items-center gap-4 p-4 rounded-2xl cursor-pointer transition-colors border ${
@@ -7012,6 +7029,7 @@ function Quiz({
   onNext,
   isDarkMode,
   timingMode,
+  selectedSubject,
 }: {
   currentQuestions: Question[]
   currentQuestionIdx: number
@@ -7029,6 +7047,7 @@ function Quiz({
   onNext: () => void
   isDarkMode: boolean
   timingMode: TimingMode
+  selectedSubject: SubjectId
 }) {
   const [openWhiteboards, setOpenWhiteboards] = useState<Record<string, boolean>>({})
   const [submittedDrawings, setSubmittedDrawings] = useState<Record<string, string>>({})
@@ -7047,10 +7066,19 @@ function Quiz({
     const marks = q.type === "mc" ? 1 : q.parts.reduce((sum, p) => sum + p.marks, 0)
     // relaxed: 1 mark / 0.5 marks per minute = 2 min/mark = 120 s/mark
     // exam:    1 mark / 0.9 marks per minute ≈ 67 s/mark
-    const secondsPerMark = timingMode === "relaxed" ? 120 : Math.round(60 / 0.9)
+    let secondsPerMark: number
+    if (selectedSubject === "Chemistry" || selectedSubject === "Biology") {
+      // relaxed: 0.44 marks/min → ~136 s/mark; exam: 0.67 marks/min → ~90 s/mark
+      secondsPerMark = timingMode === "relaxed" ? Math.round(60 / 0.44) : Math.round(60 / 0.67)
+    } else if (selectedSubject === "Practical Electronics") {
+      // relaxed: 0.67 marks/min → ~90 s/mark; exam: 1 mark/min → 60 s/mark
+      secondsPerMark = timingMode === "relaxed" ? Math.round(60 / 0.67) : 60
+    } else {
+      secondsPerMark = timingMode === "relaxed" ? 120 : Math.round(60 / 0.9)
+    }
     setTimeLeft(marks * secondsPerMark)
     setTimerExpired(false)
-  }, [currentQuestionIdx, timingMode, currentQuestions])
+  }, [currentQuestionIdx, timingMode, currentQuestions, selectedSubject])
 
   // Countdown
   useEffect(() => {
@@ -9131,6 +9159,7 @@ export default function App() {
         {view === "setup" && (
           <SetupView
             selectedLevel={selectedLevel}
+            selectedSubject={selectedSubject}
             appMode={appMode}
             onGenerate={generateQuestions}
             isGenerating={isGenerating}
@@ -9172,6 +9201,7 @@ export default function App() {
             onNext={() => (currentQuestionIdx < currentQuestions.length - 1 ? setCurrentQuestionIdx((i) => i + 1) : handleFinishQuiz())}
             isDarkMode={isDarkMode}
             timingMode={timingMode}
+            selectedSubject={selectedSubject}
           />
         )}
         {view === "results" && (
