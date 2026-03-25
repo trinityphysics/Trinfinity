@@ -456,6 +456,10 @@ interface DefProgress {
   missedKeywords: string[]
 }
 
+// Tracks which (topic, quizType, difficulty) combinations have been completed
+// Key format: `${topic}::${quizType}::${difficulty}`
+type DefCompletion = Record<string, boolean>
+
 interface DefSpotMistakeQuestion {
   type: "def-spot-mistake"
   entry: DefinitionEntry
@@ -821,6 +825,40 @@ function saveUserDefProgress(userId: string, level: string, progress: Record<str
     if (typeof window === "undefined") return
     if (!VALID_LEVELS.includes(level)) return
     localStorage.setItem(`trinfinity_def_progress_${userId}_${level}`, JSON.stringify(progress))
+  } catch {}
+}
+
+function loadDefCompletion(level: string): DefCompletion {
+  try {
+    if (typeof window === "undefined") return {}
+    if (!VALID_LEVELS.includes(level)) return {}
+    const saved = localStorage.getItem(`trinfinity_def_completion_${level}`)
+    return saved ? JSON.parse(saved) : {}
+  } catch { return {} }
+}
+
+function saveDefCompletion(level: string, completion: DefCompletion): void {
+  try {
+    if (typeof window === "undefined") return
+    if (!VALID_LEVELS.includes(level)) return
+    localStorage.setItem(`trinfinity_def_completion_${level}`, JSON.stringify(completion))
+  } catch {}
+}
+
+function loadUserDefCompletion(userId: string, level: string): DefCompletion {
+  try {
+    if (typeof window === "undefined") return {}
+    if (!VALID_LEVELS.includes(level)) return {}
+    const saved = localStorage.getItem(`trinfinity_def_completion_${userId}_${level}`)
+    return saved ? JSON.parse(saved) : {}
+  } catch { return {} }
+}
+
+function saveUserDefCompletion(userId: string, level: string, completion: DefCompletion): void {
+  try {
+    if (typeof window === "undefined") return
+    if (!VALID_LEVELS.includes(level)) return
+    localStorage.setItem(`trinfinity_def_completion_${userId}_${level}`, JSON.stringify(completion))
   } catch {}
 }
 
@@ -1232,6 +1270,13 @@ function generateQuickGainsQuiz(
   return { questions: [...mcQs, ...matchQs, ...kwQs], weakTopic }
 }
 
+// Ordered progression for definitions: quiz types must be completed in this order (each with all 3 difficulties)
+const DEF_QUIZ_ORDER = ["mc", "match", "swapped", "cloze", "keyword-builder", "spot-mistake"] as const
+type DefQuizOrder = (typeof DEF_QUIZ_ORDER)[number]
+
+// Ordered progression for difficulties within each quiz type
+const DEF_DIFF_ORDER: DifficultyLevel[] = ["easy", "medium", "hard"]
+
 // --- Definitions Mode Component ---
 
 function DefinitionsMode({
@@ -1252,7 +1297,7 @@ function DefinitionsMode({
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null)
   const [selectedTopics, setSelectedTopics] = useState<string[]>([])
   const [quizType, setQuizType] = useState<QuizType>("mc")
-  const [difficulty, setDifficulty] = useState<DifficultyLevel>("medium")
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>("easy")
   const [questions, setQuestions] = useState<DefQuestion[]>([])
   const [currentIdx, setCurrentIdx] = useState(0)
   const [mcAnswers, setMcAnswers] = useState<Record<number, number>>({})
@@ -1268,6 +1313,42 @@ function DefinitionsMode({
   const [progress, setProgress] = useState<Record<string, DefProgress>>(() =>
     currentUserId ? loadUserDefProgress(currentUserId, selectedLevel) : loadDefProgress(selectedLevel)
   )
+  const [completion, setCompletion] = useState<DefCompletion>(() =>
+    currentUserId ? loadUserDefCompletion(currentUserId, selectedLevel) : loadDefCompletion(selectedLevel)
+  )
+
+  // Check if a specific quizType+difficulty combo is unlocked for a given topic
+  const isUnlockedForTopic = (topic: string, qt: QuizType, diff: DifficultyLevel): boolean => {
+    const qtIdx = DEF_QUIZ_ORDER.indexOf(qt)
+    const diffIdx = DEF_DIFF_ORDER.indexOf(diff)
+    // First quiz type + first difficulty is always unlocked
+    if (qtIdx === 0 && diffIdx === 0) return true
+    // To unlock a higher difficulty in the same quiz type, previous difficulty must be completed
+    if (diffIdx > 0) {
+      const prevDiff = DEF_DIFF_ORDER[diffIdx - 1]
+      if (!completion[`${topic}::${qt}::${prevDiff}`]) return false
+    }
+    // To unlock the first difficulty of a new quiz type, must complete all 3 difficulties of the previous quiz type
+    if (qtIdx > 0 && diffIdx === 0) {
+      const prevQt = DEF_QUIZ_ORDER[qtIdx - 1]
+      for (const d of DEF_DIFF_ORDER) {
+        if (!completion[`${topic}::${prevQt}::${d}`]) return false
+      }
+    }
+    return true
+  }
+
+  // Check if a combo is unlocked for ALL selected topics (or uses fresh-start defaults if no topics selected)
+  const isUnlocked = (qt: QuizType, diff: DifficultyLevel): boolean => {
+    if (selectedTopics.length === 0) return qt === "mc" && diff === "easy"
+    return selectedTopics.every((topic) => isUnlockedForTopic(topic, qt, diff))
+  }
+
+  // Check if a combo has been completed for ALL selected topics
+  const isCompleted = (qt: QuizType, diff: DifficultyLevel): boolean => {
+    if (selectedTopics.length === 0) return false
+    return selectedTopics.every((topic) => Boolean(completion[`${topic}::${qt}::${diff}`]))
+  }
 
   const unitTopicsForLevel = DEF_UNIT_TOPICS[selectedLevel] ?? {}
   const levelEntries = DEFINITIONS_BANK.filter((e) => e.level === selectedLevel)
@@ -1395,6 +1476,14 @@ function DefinitionsMode({
     if (currentUserId) saveUserDefProgress(currentUserId, selectedLevel, updated)
     else saveDefProgress(selectedLevel, updated)
     setSubmitted(true)
+    // Mark this quizType+difficulty as completed for all selected topics
+    const updatedCompletion = { ...completion }
+    selectedTopics.forEach((topic) => {
+      updatedCompletion[`${topic}::${quizType}::${difficulty}`] = true
+    })
+    setCompletion(updatedCompletion)
+    if (currentUserId) saveUserDefCompletion(currentUserId, selectedLevel, updatedCompletion)
+    else saveDefCompletion(selectedLevel, updatedCompletion)
     setPhase("results")
   }
 
@@ -1560,17 +1649,23 @@ function DefinitionsMode({
   if (phase === "topic-select") {
     const quizTypes = [
       { id: "mc" as const, icon: MousePointer2, title: "Multiple Choice", desc: "Pick the correct definition" },
-      { id: "cloze" as const, icon: Type, title: "Cloze Test", desc: "Fill in missing keywords" },
       { id: "match" as const, icon: Grid3X3, title: "Match Up", desc: "Match terms to definitions" },
-      { id: "spot-mistake" as const, icon: AlertTriangle, title: "Spot the Mistake", desc: "Find the error in the definition" },
       { id: "swapped" as const, icon: ArrowLeftRight, title: "Swapped Definitions", desc: "Identify incorrectly matched pairs" },
+      { id: "cloze" as const, icon: Type, title: "Cloze Test", desc: "Fill in missing keywords" },
       { id: "keyword-builder" as const, icon: Key, title: "Keyword Builder", desc: "Arrange words into a definition" },
+      { id: "spot-mistake" as const, icon: AlertTriangle, title: "Spot the Mistake", desc: "Find the error in the definition" },
     ]
     const difficulties: { id: DifficultyLevel; label: string }[] = [
       { id: "easy", label: "Easy" },
       { id: "medium", label: "Medium" },
       { id: "hard", label: "Hard" },
     ]
+
+    // A quiz type is selectable if at least "easy" is unlocked for all selected topics
+    const isQTAvailable = (qt: QuizType) => isUnlocked(qt, "easy")
+    // Whether the current quizType+difficulty selection is valid to start
+    const canStart = selectedTopics.length > 0 && isUnlocked(quizType, difficulty)
+
     return (
       <div className="pt-24 min-h-screen p-6 animate-in fade-in slide-in-from-right-4">
         <div className="max-w-4xl mx-auto">
@@ -1581,35 +1676,6 @@ function DefinitionsMode({
           <p className={`text-lg mb-8 ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}>
             Select topics and quiz format for <span className="text-amber-600 font-bold">{selectedLevel}</span>
           </p>
-
-          {/* Quiz type selection */}
-          <div className={`rounded-2xl border-2 p-6 mb-6 ${cardBase}`}>
-            <h3 className="text-lg font-black mb-4">Quiz Format</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {quizTypes.map((qt) => (
-                <button key={qt.id} onClick={() => setQuizType(qt.id)}
-                  className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${quizType === qt.id ? "border-[#800000] bg-red-50 dark:bg-red-900/20 text-[#800000]" : isDarkMode ? "border-slate-600 hover:border-slate-400" : "border-slate-200 hover:border-slate-400"}`}>
-                  <qt.icon className="w-6 h-6 mb-2" />
-                  <span className="font-black text-sm">{qt.title}</span>
-                  <span className={`text-xs mt-1 text-center ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>{qt.desc}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Difficulty selection */}
-          <div className={`rounded-2xl border-2 p-6 mb-6 ${cardBase}`}>
-            <h3 className="text-lg font-black mb-4">Difficulty</h3>
-            <div className="grid grid-cols-3 gap-3">
-              {difficulties.map((d) => (
-                <button key={d.id} onClick={() => setDifficulty(d.id)}
-                  className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${difficulty === d.id ? diffBg(d.id) : isDarkMode ? "border-slate-600 hover:border-slate-400" : "border-slate-200 hover:border-slate-400"}`}>
-                  <span className={`font-black text-sm ${difficulty === d.id ? diffColour(d.id) : ""}`}>{d.label}</span>
-                  <span className={`text-xs mt-1 text-center ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>{diffDesc(quizType, d.id)}</span>
-                </button>
-              ))}
-            </div>
-          </div>
 
           {/* Topic selection */}
           <div className={`rounded-2xl border-2 p-6 mb-6 ${cardBase}`}>
@@ -1640,9 +1706,88 @@ function DefinitionsMode({
             </div>
           </div>
 
-          <button onClick={startQuiz} disabled={selectedTopics.length === 0}
+          {/* Quiz type selection */}
+          <div className={`rounded-2xl border-2 p-6 mb-6 ${cardBase}`}>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-lg font-black">Quiz Format</h3>
+              <span className={`text-sm ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>Complete each format in order to unlock the next</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
+              {quizTypes.map((qt) => {
+                const locked = !isQTAvailable(qt.id)
+                const done = isCompleted(qt.id, "hard") // fully completed (all 3 difficulties)
+                return (
+                  <button
+                    key={qt.id}
+                    onClick={() => { if (!locked) setQuizType(qt.id) }}
+                    disabled={locked}
+                    title={locked ? "Complete the previous quiz format first" : undefined}
+                    className={`relative flex flex-col items-center p-4 rounded-xl border-2 transition-all ${
+                      locked
+                        ? isDarkMode
+                          ? "border-slate-700 opacity-40 cursor-not-allowed"
+                          : "border-slate-200 opacity-40 cursor-not-allowed"
+                        : quizType === qt.id
+                          ? "border-[#800000] bg-red-50 dark:bg-red-900/20 text-[#800000]"
+                          : isDarkMode
+                            ? "border-slate-600 hover:border-slate-400"
+                            : "border-slate-200 hover:border-slate-400"
+                    }`}
+                  >
+                    {locked && <span className="absolute top-2 right-2 text-xs">🔒</span>}
+                    {done && !locked && <span className="absolute top-2 right-2 text-xs">✅</span>}
+                    <qt.icon className="w-6 h-6 mb-2" />
+                    <span className="font-black text-sm">{qt.title}</span>
+                    <span className={`text-xs mt-1 text-center ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>{qt.desc}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Difficulty selection */}
+          <div className={`rounded-2xl border-2 p-6 mb-6 ${cardBase}`}>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-lg font-black">Difficulty</h3>
+              <span className={`text-sm ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>Complete easy before medium, medium before hard</span>
+            </div>
+            <div className="grid grid-cols-3 gap-3 mt-4">
+              {difficulties.map((d) => {
+                const locked = !isUnlocked(quizType, d.id)
+                const done = isCompleted(quizType, d.id)
+                return (
+                  <button
+                    key={d.id}
+                    onClick={() => { if (!locked) setDifficulty(d.id) }}
+                    disabled={locked}
+                    title={locked ? "Complete the previous difficulty first" : undefined}
+                    className={`relative flex flex-col items-center p-4 rounded-xl border-2 transition-all ${
+                      locked
+                        ? isDarkMode
+                          ? "border-slate-700 opacity-40 cursor-not-allowed"
+                          : "border-slate-200 opacity-40 cursor-not-allowed"
+                        : difficulty === d.id
+                          ? diffBg(d.id)
+                          : isDarkMode
+                            ? "border-slate-600 hover:border-slate-400"
+                            : "border-slate-200 hover:border-slate-400"
+                    }`}
+                  >
+                    {locked && <span className="absolute top-2 right-2 text-xs">🔒</span>}
+                    {done && !locked && <span className="absolute top-2 right-2 text-xs">✅</span>}
+                    <span className={`font-black text-sm ${difficulty === d.id && !locked ? diffColour(d.id) : ""}`}>{d.label}</span>
+                    <span className={`text-xs mt-1 text-center ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>{diffDesc(quizType, d.id)}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <button onClick={startQuiz} disabled={!canStart}
             className="w-full py-4 rounded-2xl font-black text-lg bg-[#800000] text-white hover:bg-[#600000] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-            Start Quiz ({selectedTopics.reduce((acc, t) => acc + levelEntries.filter((e) => e.topic === t).length, 0)} terms available)
+            {!canStart && selectedTopics.length > 0
+              ? "🔒 Complete prerequisites first"
+              : `Start Quiz (${selectedTopics.reduce((acc, t) => acc + levelEntries.filter((e) => e.topic === t).length, 0)} terms available)`}
           </button>
         </div>
       </div>
@@ -2987,6 +3132,9 @@ function CalculationsMode({
   const [hotspotChoice, setHotspotChoice] = useState<Record<number, number>>({})
   const [currentStepIdx, setCurrentStepIdx] = useState(0)
   const [isPreparingQuestions, setIsPreparingQuestions] = useState(false)
+  const [calcProgress, setCalcProgress] = useState<CalcProgress>(() =>
+    currentUserId ? loadUserCalcProgress(currentUserId, selectedLevel) : defaultCalcProgress()
+  )
 
   const cardBase = isDarkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200 shadow-xl"
 
@@ -3199,6 +3347,7 @@ function CalculationsMode({
             </h2>
             <p className={`text-sm ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
               Based on the SQA Relationship Sheet. Choose which equation you want to practise.
+              {difficulty !== "easy" && <span className="ml-1 font-semibold">🔒 Equations are unlocked by completing the previous difficulty first.</span>}
             </p>
           </div>
           {/* SQA level tabs */}
@@ -3240,16 +3389,36 @@ function CalculationsMode({
                     .filter((e) => e.topic === topic)
                     .map((eq) => {
                       const hasBank = Boolean(EQUATION_QUESTION_BANKS[eq.id])
+                      // Lock logic: easy is always available; medium requires easy completion; hard requires medium completion
+                      const isEqLocked =
+                        difficulty === "medium"
+                          ? !(calcProgress.easyMode[eq.id]?.total > 0)
+                          : difficulty === "hard"
+                            ? !(calcProgress.mediumMode[eq.id]?.total > 0)
+                            : false
+                      const lockReason =
+                        difficulty === "medium"
+                          ? "Complete Easy first"
+                          : difficulty === "hard"
+                            ? "Complete Medium first"
+                            : ""
                       return (
                         <button
                           key={eq.id}
-                          onClick={() => startEquationQuiz(eq.id, difficulty)}
-                          className={`text-left p-4 rounded-2xl border-2 transition-all hover:scale-[1.01] ${
-                            isDarkMode
-                              ? "bg-slate-800 border-slate-700 hover:border-amber-500"
-                              : "bg-white border-slate-200 hover:border-[#800000] shadow-sm"
+                          onClick={() => { if (!isEqLocked) startEquationQuiz(eq.id, difficulty) }}
+                          disabled={isEqLocked}
+                          title={isEqLocked ? lockReason : undefined}
+                          className={`relative text-left p-4 rounded-2xl border-2 transition-all ${
+                            isEqLocked
+                              ? isDarkMode
+                                ? "bg-slate-800 border-slate-700 opacity-40 cursor-not-allowed"
+                                : "bg-white border-slate-200 opacity-40 cursor-not-allowed shadow-sm"
+                              : isDarkMode
+                                ? "bg-slate-800 border-slate-700 hover:border-amber-500 hover:scale-[1.01]"
+                                : "bg-white border-slate-200 hover:border-[#800000] hover:scale-[1.01] shadow-sm"
                           }`}
                         >
+                          {isEqLocked && <span className="absolute top-2 right-2 text-xs">🔒</span>}
                           <div className="flex items-start justify-between gap-2">
                             <div>
                               <p className={`font-black font-mono text-base ${isDarkMode ? "text-amber-300" : "text-amber-700"}`}>
@@ -3258,8 +3427,13 @@ function CalculationsMode({
                               <p className={`text-xs mt-0.5 ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
                                 {eq.description}
                               </p>
+                              {isEqLocked && (
+                                <p className={`text-xs mt-1 font-bold ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+                                  {lockReason}
+                                </p>
+                              )}
                             </div>
-                            {!hasBank && (
+                            {!hasBank && !isEqLocked && (
                               <span className={`text-xs shrink-0 px-2 py-0.5 rounded-full ${isDarkMode ? "bg-slate-700 text-slate-400" : "bg-slate-100 text-slate-500"}`}>
                                 demo
                               </span>
@@ -3323,6 +3497,7 @@ function CalculationsMode({
             existing.correctMe = { correct: existing.correctMe.correct + correct, total: existing.correctMe.total + questions.length }
           }
           saveUserCalcProgress(currentUserId, selectedLevel, existing)
+          setCalcProgress(existing)
         }
         setPhase("results")
       } else {
