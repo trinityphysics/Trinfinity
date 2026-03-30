@@ -24,6 +24,14 @@ import {
   IMPROVE_EXAMPLES as CHEMISTRY_IMPROVE_EXAMPLES,
   ASSIGNMENT_CUSTOM_QUESTIONS_KEY as CHEMISTRY_ASSIGNMENT_CUSTOM_QUESTIONS_KEY,
 } from "@/data/n5-chemistry-assignment"
+import {
+  ASSIGNMENT_SECTIONS as BIOLOGY_ASSIGNMENT_SECTIONS,
+  CANDIDATE_PAPERS as BIOLOGY_CANDIDATE_PAPERS,
+  COMMENTARY_PDF_URL as BIOLOGY_COMMENTARY_PDF_URL,
+  PRACTICE_QUESTIONS as BIOLOGY_PRACTICE_QUESTIONS,
+  IMPROVE_EXAMPLES as BIOLOGY_IMPROVE_EXAMPLES,
+  ASSIGNMENT_CUSTOM_QUESTIONS_KEY as BIOLOGY_ASSIGNMENT_CUSTOM_QUESTIONS_KEY,
+} from "@/data/n5-biology-assignment"
 import { SUBJECT_LEVEL_OUTCOMES, type Outcome } from "@/data/outcomes"
 import N5_ELEMENTS_RAW from "@/data/N5_Chemistry_Elements_1_20.json"
 import {
@@ -4416,12 +4424,16 @@ function AssignmentMode({
   type MarkPhase = "select-paper" | "marking" | "submitted"
 
   const isChemistry = selectedSubject === "Chemistry"
-  const ASSIGNMENT_SECTIONS = isChemistry ? CHEMISTRY_ASSIGNMENT_SECTIONS : PHYSICS_ASSIGNMENT_SECTIONS
-  const CANDIDATE_PAPERS = isChemistry ? CHEMISTRY_CANDIDATE_PAPERS : PHYSICS_CANDIDATE_PAPERS
-  const COMMENTARY_PDF_URL = isChemistry ? CHEMISTRY_COMMENTARY_PDF_URL : PHYSICS_COMMENTARY_PDF_URL
-  const PRACTICE_QUESTIONS = isChemistry ? CHEMISTRY_PRACTICE_QUESTIONS : PHYSICS_PRACTICE_QUESTIONS
-  const IMPROVE_EXAMPLES = isChemistry ? CHEMISTRY_IMPROVE_EXAMPLES : PHYSICS_IMPROVE_EXAMPLES
-  const ASSIGNMENT_CUSTOM_QUESTIONS_KEY = isChemistry ? CHEMISTRY_ASSIGNMENT_CUSTOM_QUESTIONS_KEY : PHYSICS_ASSIGNMENT_CUSTOM_QUESTIONS_KEY
+  const isBiology = selectedSubject === "Biology"
+  const subjectLabel = isChemistry ? "Chemistry" : isBiology ? "Biology" : "Physics"
+  const ASSIGNMENT_SECTIONS = isChemistry ? CHEMISTRY_ASSIGNMENT_SECTIONS : isBiology ? BIOLOGY_ASSIGNMENT_SECTIONS : PHYSICS_ASSIGNMENT_SECTIONS
+  const CANDIDATE_PAPERS = isChemistry ? CHEMISTRY_CANDIDATE_PAPERS : isBiology ? BIOLOGY_CANDIDATE_PAPERS : PHYSICS_CANDIDATE_PAPERS
+  const COMMENTARY_PDF_URL = isChemistry ? CHEMISTRY_COMMENTARY_PDF_URL : isBiology ? BIOLOGY_COMMENTARY_PDF_URL : PHYSICS_COMMENTARY_PDF_URL
+  const PRACTICE_QUESTIONS = isChemistry ? CHEMISTRY_PRACTICE_QUESTIONS : isBiology ? BIOLOGY_PRACTICE_QUESTIONS : PHYSICS_PRACTICE_QUESTIONS
+  const IMPROVE_EXAMPLES = isChemistry ? CHEMISTRY_IMPROVE_EXAMPLES : isBiology ? BIOLOGY_IMPROVE_EXAMPLES : PHYSICS_IMPROVE_EXAMPLES
+  const ASSIGNMENT_CUSTOM_QUESTIONS_KEY = isChemistry ? CHEMISTRY_ASSIGNMENT_CUSTOM_QUESTIONS_KEY : isBiology ? BIOLOGY_ASSIGNMENT_CUSTOM_QUESTIONS_KEY : PHYSICS_ASSIGNMENT_CUSTOM_QUESTIONS_KEY
+  // Biology candidate papers are from 2018; Physics and Chemistry are from 2023-24
+  const candidatePapersYear = isBiology ? "2018" : "2023-24"
 
   const [phase, setPhase] = useState<AssignPhase>("hub")
 
@@ -4563,7 +4575,7 @@ function AssignmentMode({
               <span className="text-[#800000]">Assignment</span> Practice
             </h2>
             <p className={`text-lg ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}>
-              National 5 {isChemistry ? "Chemistry" : "Physics"} — 2023-24 Understanding Standards
+              National 5 {subjectLabel} — Understanding Standards
             </p>
           </div>
           <div className="grid md:grid-cols-2 gap-6">
@@ -4831,6 +4843,19 @@ function AssignmentMode({
                 <p className={`text-sm leading-relaxed ${isCorrect ? "text-green-700 dark:text-green-300" : "text-amber-700 dark:text-amber-300"}`}>
                   {q.explanation}
                 </p>
+                {(() => {
+                  const sectionExampleUrl = ASSIGNMENT_SECTIONS.find((s) => s.id === q.sectionRef)?.examplePdfUrl
+                  return sectionExampleUrl ? (
+                    <a
+                      href={sectionExampleUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`inline-flex items-center gap-1 mt-3 text-xs font-bold underline ${isCorrect ? "text-green-700 dark:text-green-400" : "text-amber-700 dark:text-amber-400"}`}
+                    >
+                      See candidate example for this section ↗
+                    </a>
+                  ) : null
+                })()}
               </div>
             )}
           </div>
@@ -4882,7 +4907,7 @@ function AssignmentMode({
             </div>
             <h2 className="text-3xl font-black mb-2">Mark a Candidate Paper</h2>
             <p className={`text-sm mb-8 leading-relaxed ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
-              Choose one of the {CANDIDATE_PAPERS.length} real 2023-24 N5 {isChemistry ? "Chemistry" : "Physics"} Assignment candidate papers. You will award marks section by section, then see the actual marks awarded and the official commentary.
+              Choose one of the {CANDIDATE_PAPERS.length} real {candidatePapersYear} N5 {subjectLabel} Assignment candidate papers. You will award marks section by section, then see the actual marks awarded and the official commentary.
             </p>
 
             <div className="grid md:grid-cols-2 gap-4 lg:grid-cols-3">
@@ -4980,7 +5005,7 @@ function AssignmentMode({
               <div className="flex flex-col gap-4">
                 <div className={`rounded-3xl border-2 p-5 ${cardBase}`}>
                   <p className="text-xs font-black uppercase tracking-widest text-[#800000] mb-1">
-                  Marking Rubric — N5 {isChemistry ? "Chemistry" : "Physics"} Assignment
+                  Marking Rubric — N5 {subjectLabel} Assignment
                   </p>
                   <p className={`text-xs ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
                     Award marks for each section. For sub-criteria sections, tick each criterion independently. Submit when done to see the actual marks and commentary.
@@ -5253,6 +5278,22 @@ function AssignmentMode({
               </div>
             </div>
 
+            {selectedCandidate.commentaryPdfUrl && (
+              <div className={`rounded-3xl border-2 p-4 mb-4 flex items-center justify-between ${cardBase}`}>
+                <p className={`text-xs font-bold ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                  Official Marking Commentary (Candidate {selectedCandidate.id})
+                </p>
+                <a
+                  href={selectedCandidate.commentaryPdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-bold text-[#800000] hover:underline"
+                >
+                  Open PDF ↗
+                </a>
+              </div>
+            )}
+
             <div className="flex gap-3">
               <button
                 onClick={() => {
@@ -5301,7 +5342,7 @@ function AssignmentMode({
 
           <h2 className="text-3xl font-black mb-2">Review Marking Scheme</h2>
           <p className={`text-sm mb-6 leading-relaxed ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
-            Explore the official SQA marking commentary for the 2023-24 N5 {isChemistry ? "Chemistry" : "Physics"} Assignment. Click a section below for the marking criteria, or view the full commentary PDF.
+            Explore the official SQA marking commentary for the N5 {subjectLabel} Assignment. Click a section below for the marking criteria, or view the full commentary PDF.
           </p>
 
           {/* Candidate total marks overview */}
