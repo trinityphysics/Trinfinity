@@ -16,12 +16,16 @@ export interface AssignmentSection {
   markDescriptions: Record<number, string>
   /** Individual sub-criteria for sections marked per-criterion (e.g. 3a–3f, 4a–4d). When present the UI awards 0 or 1 per sub-criterion instead of a holistic 0–N selector. */
   subCriteria?: SubCriterion[]
+  /** Optional URL to a PDF showing a real candidate example for this section (used in Practice mode). */
+  examplePdfUrl?: string
 }
 
 export interface CandidatePaper {
   id: number
   topic: string
   pdfUrl: string
+  /** Optional URL to the official marking commentary PDF for this specific candidate paper. */
+  commentaryPdfUrl?: string
   sectionMarks: Record<string, number>
   sectionCommentary: Record<string, string>
   /** Per-sub-criterion actual marks for sections that have subCriteria defined. Key: sectionId → Record<subCriterionId, 0|1>. */
