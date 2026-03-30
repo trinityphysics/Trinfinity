@@ -3162,16 +3162,28 @@ const SQA_EQUATIONS: SQAEquation[] = [
   // National 5 — Electricity
   { id: "Q-It",        formula: "Q = It",               description: "Charge",                                   topic: "Electricity", sqaLevel: "N5" },
   { id: "V-IR",        formula: "V = IR",               description: "Ohm's Law",                                topic: "Electricity", sqaLevel: "N5" },
+  { id: "volt-divider", formula: "Vs = V × Rs/(R1+R2)", description: "Voltage Divider",                          topic: "Electricity", sqaLevel: "N5" },
+  { id: "volt-ratio",  formula: "V1/V2 = R1/R2",        description: "Potential Divider Ratio",                  topic: "Electricity", sqaLevel: "N5" },
+  { id: "R-series",    formula: "RT = R1 + R2 + ...",   description: "Resistors in Series",                      topic: "Electricity", sqaLevel: "N5" },
+  { id: "R-parallel",  formula: "1/RT = 1/R1 + 1/R2 + ...", description: "Resistors in Parallel",               topic: "Electricity", sqaLevel: "N5" },
   { id: "P-IV",        formula: "P = IV",               description: "Electrical Power (P = IV)",                topic: "Electricity", sqaLevel: "N5" },
   { id: "P-I2R",       formula: "P = I²R",              description: "Electrical Power (P = I²R)",               topic: "Electricity", sqaLevel: "N5" },
+  { id: "P-V2R-n5",    formula: "P = V²/R",             description: "Electrical Power (P = V²/R)",              topic: "Electricity", sqaLevel: "N5" },
+  // National 5 — Pressure
+  { id: "p-FA",        formula: "p = F/A",              description: "Pressure",                                 topic: "Pressure",    sqaLevel: "N5" },
   // National 5 — Waves
   { id: "v-fl",        formula: "v = fλ",               description: "Wave Equation",                            topic: "Waves",       sqaLevel: "N5" },
   { id: "T-1f",        formula: "T = 1/f",              description: "Period and Frequency",                     topic: "Waves",       sqaLevel: "N5" },
   // National 5 — Radiation
   { id: "D-Em",        formula: "D = E/m",              description: "Absorbed Dose",                            topic: "Radiation",   sqaLevel: "N5" },
   { id: "H-DwR",       formula: "H = Dw_R",             description: "Equivalent Dose",                          topic: "Radiation",   sqaLevel: "N5" },
+  { id: "A-Nt",        formula: "A = N/t",              description: "Activity",                                 topic: "Radiation",   sqaLevel: "N5" },
+  { id: "H-dot",       formula: "Ḣ = H/t",              description: "Equivalent Dose Rate",                     topic: "Radiation",   sqaLevel: "N5" },
   // National 5 — Gas Laws
   { id: "temp-conv",   formula: "T(K) = T(°C) + 273",  description: "Temperature Conversion",                  topic: "Gas Laws",    sqaLevel: "N5" },
+  { id: "boyles-law",  formula: "p₁V₁ = p₂V₂",         description: "Boyle's Law",                              topic: "Gas Laws",    sqaLevel: "N5" },
+  { id: "pressure-law", formula: "p₁/T₁ = p₂/T₂",      description: "Gay-Lussac's Law (Pressure Law)",          topic: "Gas Laws",    sqaLevel: "N5" },
+  { id: "charles-law", formula: "V₁/T₁ = V₂/T₂",       description: "Charles' Law",                             topic: "Gas Laws",    sqaLevel: "N5" },
   { id: "gas-law",     formula: "p₁V₁/T₁ = p₂V₂/T₂",  description: "Combined Gas Law",                         topic: "Gas Laws",    sqaLevel: "N5" },
   // Higher — Dynamics
   { id: "s-uat2",      formula: "s = ut + ½at²",        description: "Equations of Motion (s)",                  topic: "Dynamics",    sqaLevel: "Higher" },
@@ -3661,6 +3673,227 @@ const EQUATION_QUESTION_BANKS: Record<string, { easy: CalcQuestion[]; medium: Ca
     hard: [
       { id: "HDwR-h1", stem: "A worker is exposed to alpha radiation (w_R = 20) with an absorbed dose of 0.25 mGy and gamma radiation (w_R = 1) with an absorbed dose of 2 mGy. Calculate the total equivalent dose.", equation: "H = Dw_R; H_T = H_1 + H_2", correctAnswer: "7 mSv", markScheme: "H_α = 0.25 × 10⁻³ × 20 = 5 × 10⁻³ Sv;  H_γ = 2 × 10⁻³ × 1 = 2 × 10⁻³ Sv;  H_T = 5 + 2 = 7 mSv" },
       { id: "HDwR-h2", stem: "An equivalent dose of 0.24 Sv is received from proton radiation (w_R = 2). Calculate the absorbed dose in mGy.", equation: "H = Dw_R  →  D = H ÷ w_R", correctAnswer: "120 mGy", markScheme: "D = 0.24 ÷ 2 = 0.12 Gy = 120 mGy" },
+    ],
+  },
+
+  // ── A = N/t ────────────────────────────────────────────────────────────────
+  "A-Nt": {
+    easy: [
+      { id: "ANt-e1", stem: "A radioactive source produces 600 decays in 3 s. Calculate the activity.", equation: "A = N/t", options: ["2 Bq", "200 Bq", "1 800 Bq", "603 Bq"], correctOption: 1, markScheme: "A = N ÷ t = 600 ÷ 3 = 200 Bq" },
+      { id: "ANt-e2", stem: "A source has an activity of 500 Bq. Calculate the number of decays in 10 s.", equation: "A = N/t  →  N = At", options: ["50", "510", "5 000", "0.05"], correctOption: 2, markScheme: "N = A × t = 500 × 10 = 5 000" },
+      { id: "ANt-e3", stem: "A source produces 1 200 decays and has an activity of 400 Bq. Calculate the time interval.", equation: "A = N/t  →  t = N ÷ A", options: ["480 000 s", "3 s", "800 s", "0.33 s"], correctOption: 1, markScheme: "t = N ÷ A = 1 200 ÷ 400 = 3 s" },
+      { id: "ANt-e4", stem: "A source has activity 250 Bq. Calculate the number of decays in 20 s.", equation: "A = N/t  →  N = At", options: ["12.5", "270", "5 000", "230"], correctOption: 2, markScheme: "N = 250 × 20 = 5 000" },
+    ],
+    medium: [
+      { id: "ANt-m1", stem: "A source produces 3.6 × 10⁴ decays in 2 minutes. Calculate the activity in Bq.", equation: "A = N/t", correctAnswer: "300 Bq", markScheme: "t = 2 × 60 = 120 s;  A = 3.6 × 10⁴ ÷ 120 = 300 Bq" },
+      { id: "ANt-m2", stem: "A detector has an activity of 2.4 kBq. Calculate the number of decays in 5 s.", equation: "A = N/t  →  N = At", correctAnswer: "12 000", markScheme: "A = 2 400 Bq;  N = 2 400 × 5 = 12 000" },
+      { id: "ANt-m3", stem: "A source produces 9.0 × 10⁵ decays and has an activity of 1.5 × 10⁴ Bq. Calculate the time in seconds.", equation: "A = N/t  →  t = N ÷ A", correctAnswer: "60 s", markScheme: "t = 9.0 × 10⁵ ÷ 1.5 × 10⁴ = 60 s" },
+    ],
+    hard: [
+      { id: "ANt-h1", stem: "A radioactive source has an activity of 3.2 MBq. Calculate the number of decays in 30 s.", equation: "A = N/t  →  N = At", correctAnswer: "9.6 × 10⁷", markScheme: "A = 3.2 × 10⁶ Bq;  N = 3.2 × 10⁶ × 30 = 9.6 × 10⁷" },
+      { id: "ANt-h2", stem: "A source produces 4.5 × 10⁸ decays in 15 minutes. Calculate the activity in MBq.", equation: "A = N/t", correctAnswer: "0.50 MBq", markScheme: "t = 15 × 60 = 900 s;  A = 4.5 × 10⁸ ÷ 900 = 5.0 × 10⁵ Bq = 0.50 MBq" },
+    ],
+  },
+
+  // ── Ḣ = H/t ────────────────────────────────────────────────────────────────
+  "H-dot": {
+    easy: [
+      { id: "Hdot-e1", stem: "A worker receives an equivalent dose of 20 mSv in 4 hours. Calculate the dose rate.", equation: "Ḣ = H/t", options: ["80 mSvh⁻¹", "16 mSvh⁻¹", "5 mSvh⁻¹", "24 mSvh⁻¹"], correctOption: 2, markScheme: "Ḣ = H ÷ t = 20 ÷ 4 = 5 mSvh⁻¹" },
+      { id: "Hdot-e2", stem: "A radiation dose rate is 2 mSvh⁻¹. Calculate the equivalent dose received in 6 hours.", equation: "Ḣ = H/t  →  H = Ḣt", options: ["0.33 mSv", "8 mSv", "12 mSv", "3 mSv"], correctOption: 2, markScheme: "H = Ḣ × t = 2 × 6 = 12 mSv" },
+      { id: "Hdot-e3", stem: "A worker receives an equivalent dose of 15 mSv at a dose rate of 3 mSvh⁻¹. Calculate the time of exposure.", equation: "Ḣ = H/t  →  t = H ÷ Ḣ", options: ["45 h", "5 h", "18 h", "12 h"], correctOption: 1, markScheme: "t = H ÷ Ḣ = 15 ÷ 3 = 5 h" },
+    ],
+    medium: [
+      { id: "Hdot-m1", stem: "A dose rate is 0.25 mSvh⁻¹. Calculate the equivalent dose received during an 8-hour working day.", equation: "Ḣ = H/t  →  H = Ḣt", correctAnswer: "2 mSv", markScheme: "H = 0.25 × 8 = 2 mSv" },
+      { id: "Hdot-m2", stem: "An equivalent dose of 60 μSv is received over 30 minutes. Calculate the dose rate in μSvh⁻¹.", equation: "Ḣ = H/t", correctAnswer: "120 μSvh⁻¹", markScheme: "t = 30 min = 0.5 h;  Ḣ = 60 ÷ 0.5 = 120 μSvh⁻¹" },
+      { id: "Hdot-m3", stem: "A radiation area has a dose rate of 4.0 mSvh⁻¹. A worker is allowed a maximum dose of 1.0 mSv per visit. Calculate the maximum time the worker can spend in the area.", equation: "Ḣ = H/t  →  t = H ÷ Ḣ", correctAnswer: "0.25 h (15 min)", markScheme: "t = H ÷ Ḣ = 1.0 ÷ 4.0 = 0.25 h = 15 min" },
+    ],
+    hard: [
+      { id: "Hdot-h1", stem: "A nuclear worker receives an equivalent dose of 3.6 mSv in 45 minutes. Calculate the dose rate in mSvh⁻¹.", equation: "Ḣ = H/t", correctAnswer: "4.8 mSvh⁻¹", markScheme: "t = 45 min = 0.75 h;  Ḣ = 3.6 ÷ 0.75 = 4.8 mSvh⁻¹" },
+      { id: "Hdot-h2", stem: "A dose rate is 2.5 mSvh⁻¹. A worker's annual dose limit is 20 mSv. How many hours can the worker spend in this area per year?", equation: "Ḣ = H/t  →  t = H ÷ Ḣ", correctAnswer: "8 h", markScheme: "t = 20 ÷ 2.5 = 8 h" },
+    ],
+  },
+
+  // ── Voltage Divider: Vs = V × Rs/(R1+R2) ─────────────────────────────────
+  "volt-divider": {
+    easy: [
+      { id: "VD-e1", stem: "A 12 V supply is connected to R1 = 20 Ω and R2 = 40 Ω in series. Calculate the voltage across R2.", equation: "V2 = V × R2/(R1+R2)", options: ["4 V", "8 V", "6 V", "10 V"], correctOption: 1, markScheme: "V2 = 12 × 40/(20+40) = 12 × 40/60 = 8 V" },
+      { id: "VD-e2", stem: "A 6 V battery is connected to R1 = 10 Ω and R2 = 20 Ω in series. Calculate the voltage across R1.", equation: "V1 = V × R1/(R1+R2)", options: ["4 V", "3 V", "2 V", "1 V"], correctOption: 2, markScheme: "V1 = 6 × 10/(10+20) = 6 × 10/30 = 2 V" },
+      { id: "VD-e3", stem: "A 9 V supply is connected to R1 = 30 Ω and R2 = 60 Ω in series. Calculate the voltage across R2.", equation: "V2 = V × R2/(R1+R2)", options: ["3 V", "6 V", "4.5 V", "7 V"], correctOption: 1, markScheme: "V2 = 9 × 60/(30+60) = 9 × 60/90 = 6 V" },
+      { id: "VD-e4", stem: "A 15 V supply is connected to two equal resistors (R1 = R2 = 50 Ω) in series. Calculate the voltage across R2.", equation: "V2 = V × R2/(R1+R2)", options: ["15 V", "5 V", "7.5 V", "10 V"], correctOption: 2, markScheme: "V2 = 15 × 50/(50+50) = 15 × 0.5 = 7.5 V" },
+    ],
+    medium: [
+      { id: "VD-m1", stem: "A 10 V supply is connected to R1 = 100 Ω and R2 = 150 Ω in series. Calculate the voltage across R2.", equation: "V2 = V × R2/(R1+R2)", correctAnswer: "6 V", markScheme: "V2 = 10 × 150/(100+150) = 10 × 150/250 = 6 V" },
+      { id: "VD-m2", stem: "Two resistors R1 = 2.2 kΩ and R2 = 3.3 kΩ are connected in series to a 5 V supply. Calculate the voltage across R1.", equation: "V1 = V × R1/(R1+R2)", correctAnswer: "2 V", markScheme: "V1 = 5 × 2200/(2200+3300) = 5 × 2200/5500 = 2 V" },
+      { id: "VD-m3", stem: "A 12 V supply is connected to R1 = 1.5 kΩ and R2 = 4.5 kΩ in series. Calculate the voltage across R2.", equation: "V2 = V × R2/(R1+R2)", correctAnswer: "9 V", markScheme: "V2 = 12 × 4500/(1500+4500) = 12 × 4500/6000 = 9 V" },
+    ],
+    hard: [
+      { id: "VD-h1", stem: "A 15 V supply is connected to R1 = 4.7 kΩ and R2 = 2.2 kΩ in series. Calculate the voltage across R2 to 3 significant figures.", equation: "V2 = V × R2/(R1+R2)", correctAnswer: "4.78 V", markScheme: "V2 = 15 × 2200/(4700+2200) = 15 × 2200/6900 = 15 × 0.3188... = 4.78 V" },
+      { id: "VD-h2", stem: "A voltage divider uses R1 = 680 Ω and R2 = 220 Ω connected to a 9 V supply. Calculate the output voltage across R2.", equation: "V2 = V × R2/(R1+R2)", correctAnswer: "2.20 V", markScheme: "V2 = 9 × 220/(680+220) = 9 × 220/900 = 2.20 V" },
+    ],
+  },
+
+  // ── V1/V2 = R1/R2 ─────────────────────────────────────────────────────────
+  "volt-ratio": {
+    easy: [
+      { id: "VR-e1", stem: "Two resistors R1 = 20 Ω and R2 = 40 Ω are in series. The voltage across R2 is 8 V. Calculate the voltage across R1.", equation: "V1/V2 = R1/R2", options: ["4 V", "16 V", "8 V", "2 V"], correctOption: 0, markScheme: "V1/V2 = R1/R2;  V1 = V2 × R1/R2 = 8 × 20/40 = 4 V" },
+      { id: "VR-e2", stem: "The voltage across R1 = 3 V and R2 = 9 V in a series circuit. Calculate R2 if R1 = 15 Ω.", equation: "V1/V2 = R1/R2  →  R2 = R1 × V2/V1", options: ["5 Ω", "45 Ω", "5 Ω", "135 Ω"], correctOption: 1, markScheme: "R2 = R1 × V2/V1 = 15 × 9/3 = 45 Ω" },
+      { id: "VR-e3", stem: "R1 = 30 Ω, R2 = 10 Ω in series. V2 = 2 V. Calculate V1.", equation: "V1/V2 = R1/R2", options: ["0.67 V", "6 V", "2 V", "3 V"], correctOption: 1, markScheme: "V1 = V2 × R1/R2 = 2 × 30/10 = 6 V" },
+    ],
+    medium: [
+      { id: "VR-m1", stem: "R1 = 100 Ω and R2 = 400 Ω are in series. V1 = 2 V. Calculate V2.", equation: "V1/V2 = R1/R2  →  V2 = V1 × R2/R1", correctAnswer: "8 V", markScheme: "V2 = 2 × 400/100 = 8 V" },
+      { id: "VR-m2", stem: "In a series circuit, V1 = 4 V across R1 = 200 Ω and V2 = 6 V across R2. Calculate R2.", equation: "V1/V2 = R1/R2  →  R2 = R1 × V2/V1", correctAnswer: "300 Ω", markScheme: "R2 = 200 × 6/4 = 300 Ω" },
+      { id: "VR-m3", stem: "A series circuit has R1 = 1.5 kΩ and R2 = 4.5 kΩ. The voltage across R1 is 3 V. Calculate the voltage across R2.", equation: "V1/V2 = R1/R2  →  V2 = V1 × R2/R1", correctAnswer: "9 V", markScheme: "V2 = 3 × 4500/1500 = 9 V" },
+    ],
+    hard: [
+      { id: "VR-h1", stem: "Two resistors in series have R1 = 4.7 kΩ and R2 = 2.2 kΩ. The voltage across R1 is 10.8 V. Calculate the voltage across R2 to 3 significant figures.", equation: "V1/V2 = R1/R2  →  V2 = V1 × R2/R1", correctAnswer: "5.06 V", markScheme: "V2 = 10.8 × 2200/4700 = 10.8 × 0.4681 = 5.06 V" },
+      { id: "VR-h2", stem: "In a series circuit, R1 = 560 Ω and V2 = 7.5 V across R2 = 1.5 kΩ. Calculate V1.", equation: "V1/V2 = R1/R2", correctAnswer: "2.8 V", markScheme: "V1 = V2 × R1/R2 = 7.5 × 560/1500 = 7.5 × 0.3733 = 2.8 V" },
+    ],
+  },
+
+  // ── RT = R1 + R2 + ... (Series) ────────────────────────────────────────────
+  "R-series": {
+    easy: [
+      { id: "RS-e1", stem: "Three resistors of 10 Ω, 20 Ω, and 30 Ω are connected in series. Calculate the total resistance.", equation: "RT = R1 + R2 + R3", options: ["6 Ω", "60 Ω", "20 Ω", "100 Ω"], correctOption: 1, markScheme: "RT = 10 + 20 + 30 = 60 Ω" },
+      { id: "RS-e2", stem: "Two resistors in series have R1 = 15 Ω and R2 = 25 Ω. Calculate the total resistance.", equation: "RT = R1 + R2", options: ["10 Ω", "40 Ω", "9.4 Ω", "375 Ω"], correctOption: 1, markScheme: "RT = 15 + 25 = 40 Ω" },
+      { id: "RS-e3", stem: "A series circuit has RT = 90 Ω with R1 = 30 Ω and R2 = 40 Ω. Calculate R3.", equation: "RT = R1 + R2 + R3  →  R3 = RT − R1 − R2", options: ["160 Ω", "20 Ω", "10 Ω", "60 Ω"], correctOption: 1, markScheme: "R3 = 90 − 30 − 40 = 20 Ω" },
+      { id: "RS-e4", stem: "Four resistors of 5 Ω each are connected in series. Calculate the total resistance.", equation: "RT = R1 + R2 + R3 + R4", options: ["1.25 Ω", "20 Ω", "5 Ω", "25 Ω"], correctOption: 1, markScheme: "RT = 5 + 5 + 5 + 5 = 20 Ω" },
+    ],
+    medium: [
+      { id: "RS-m1", stem: "Resistors of 4.7 kΩ, 2.2 kΩ, and 1.0 kΩ are connected in series. Calculate the total resistance.", equation: "RT = R1 + R2 + R3", correctAnswer: "7.9 kΩ", markScheme: "RT = 4.7 + 2.2 + 1.0 = 7.9 kΩ" },
+      { id: "RS-m2", stem: "A series circuit has total resistance 350 Ω. R1 = 120 Ω and R2 = 180 Ω. Calculate R3.", equation: "R3 = RT − R1 − R2", correctAnswer: "50 Ω", markScheme: "R3 = 350 − 120 − 180 = 50 Ω" },
+      { id: "RS-m3", stem: "A 12 V supply is connected to three series resistors of 10 Ω, 20 Ω, and 30 Ω. Calculate the current in the circuit.", equation: "RT = R1 + R2 + R3;  I = V/RT", correctAnswer: "0.2 A", markScheme: "RT = 10 + 20 + 30 = 60 Ω;  I = 12/60 = 0.2 A" },
+    ],
+    hard: [
+      { id: "RS-h1", stem: "Three resistors are connected in series: R1 = 470 Ω, R2 = 1.2 kΩ, R3 = 330 Ω. A 9 V battery is connected. Calculate the total resistance and the current.", equation: "RT = R1 + R2 + R3;  I = V/RT", correctAnswer: "RT = 2 000 Ω;  I = 4.5 mA", markScheme: "RT = 470 + 1200 + 330 = 2 000 Ω;  I = 9 ÷ 2000 = 0.0045 A = 4.5 mA" },
+      { id: "RS-h2", stem: "A series circuit has R1 = 2.2 kΩ and R2 = 3.3 kΩ connected to a 10 V supply. Calculate the voltage across R1.", equation: "RT = R1 + R2;  I = V/RT;  V1 = IR1", correctAnswer: "4 V", markScheme: "RT = 5500 Ω;  I = 10/5500 = 1.818 × 10⁻³ A;  V1 = 1.818 × 10⁻³ × 2200 = 4 V" },
+    ],
+  },
+
+  // ── 1/RT = 1/R1 + 1/R2 + ... (Parallel) ───────────────────────────────────
+  "R-parallel": {
+    easy: [
+      { id: "RP-e1", stem: "Two resistors of 6 Ω and 3 Ω are connected in parallel. Calculate the total resistance.", equation: "1/RT = 1/R1 + 1/R2", options: ["9 Ω", "2 Ω", "4.5 Ω", "18 Ω"], correctOption: 1, markScheme: "1/RT = 1/6 + 1/3 = 1/6 + 2/6 = 3/6;  RT = 6/3 = 2 Ω" },
+      { id: "RP-e2", stem: "Two identical 8 Ω resistors are connected in parallel. Calculate the total resistance.", equation: "1/RT = 1/R1 + 1/R2", options: ["16 Ω", "8 Ω", "4 Ω", "0.25 Ω"], correctOption: 2, markScheme: "1/RT = 1/8 + 1/8 = 2/8;  RT = 8/2 = 4 Ω" },
+      { id: "RP-e3", stem: "Two resistors of 4 Ω and 12 Ω are connected in parallel. Calculate the total resistance.", equation: "1/RT = 1/R1 + 1/R2", options: ["8 Ω", "16 Ω", "3 Ω", "6 Ω"], correctOption: 2, markScheme: "1/RT = 1/4 + 1/12 = 3/12 + 1/12 = 4/12;  RT = 12/4 = 3 Ω" },
+    ],
+    medium: [
+      { id: "RP-m1", stem: "Two resistors of 10 Ω and 15 Ω are connected in parallel. Calculate the total resistance.", equation: "1/RT = 1/R1 + 1/R2", correctAnswer: "6 Ω", markScheme: "1/RT = 1/10 + 1/15 = 3/30 + 2/30 = 5/30;  RT = 30/5 = 6 Ω" },
+      { id: "RP-m2", stem: "Three resistors of 6 Ω, 12 Ω, and 4 Ω are connected in parallel. Calculate the total resistance.", equation: "1/RT = 1/R1 + 1/R2 + 1/R3", correctAnswer: "2 Ω", markScheme: "1/RT = 1/6 + 1/12 + 1/4 = 2/12 + 1/12 + 3/12 = 6/12;  RT = 12/6 = 2 Ω" },
+      { id: "RP-m3", stem: "A 12 V supply is connected to two parallel resistors: R1 = 6 Ω and R2 = 4 Ω. Calculate the total current from the supply.", equation: "1/RT = 1/R1 + 1/R2;  I = V/RT", correctAnswer: "5 A", markScheme: "1/RT = 1/6 + 1/4 = 2/12 + 3/12 = 5/12;  RT = 2.4 Ω;  I = 12/2.4 = 5 A" },
+    ],
+    hard: [
+      { id: "RP-h1", stem: "Two resistors R1 = 220 Ω and R2 = 330 Ω are connected in parallel. Calculate the total resistance to 3 significant figures.", equation: "1/RT = 1/R1 + 1/R2", correctAnswer: "132 Ω", markScheme: "1/RT = 1/220 + 1/330 = 3/660 + 2/660 = 5/660;  RT = 660/5 = 132 Ω" },
+      { id: "RP-h2", stem: "Two resistors (2.4 kΩ and 3.6 kΩ) are in parallel, connected to a 12 V supply. Calculate the total current.", equation: "1/RT = 1/R1 + 1/R2;  I = V/RT", correctAnswer: "8.33 mA", markScheme: "1/RT = 1/2400 + 1/3600 = 3/7200 + 2/7200 = 5/7200;  RT = 1440 Ω;  I = 12/1440 = 8.33 × 10⁻³ A = 8.33 mA" },
+    ],
+  },
+
+  // ── p = F/A ────────────────────────────────────────────────────────────────
+  "p-FA": {
+    easy: [
+      { id: "pFA-e1", stem: "A force of 40 N acts on an area of 2 m². Calculate the pressure.", equation: "p = F/A", options: ["80 Pa", "20 Pa", "42 Pa", "38 Pa"], correctOption: 1, markScheme: "p = F ÷ A = 40 ÷ 2 = 20 Pa" },
+      { id: "pFA-e2", stem: "A pressure of 500 Pa acts over an area of 0.4 m². Calculate the force.", equation: "p = F/A  →  F = pA", options: ["1 250 N", "200 N", "500.4 N", "0.0008 N"], correctOption: 1, markScheme: "F = p × A = 500 × 0.4 = 200 N" },
+      { id: "pFA-e3", stem: "A force of 120 N creates a pressure of 40 Pa. Calculate the area.", equation: "p = F/A  →  A = F ÷ p", options: ["4 800 m²", "80 m²", "3 m²", "0.33 m²"], correctOption: 2, markScheme: "A = F ÷ p = 120 ÷ 40 = 3 m²" },
+      { id: "pFA-e4", stem: "A woman of weight 600 N stands on both feet with a total contact area of 0.03 m². Calculate the pressure on the floor.", equation: "p = F/A", options: ["18 Pa", "20 000 Pa", "600.03 Pa", "2 Pa"], correctOption: 1, markScheme: "p = 600 ÷ 0.03 = 20 000 Pa" },
+    ],
+    medium: [
+      { id: "pFA-m1", stem: "A 70 kg person (g = 9.8 Nkg⁻¹) stands on two feet, each with area 150 cm². Calculate the pressure on the floor.", equation: "p = F/A", correctAnswer: "22 900 Pa", markScheme: "F = 70 × 9.8 = 686 N;  A = 2 × 150 × 10⁻⁴ = 0.030 m²;  p = 686 ÷ 0.030 = 22 900 Pa" },
+      { id: "pFA-m2", stem: "A hydraulic piston has area 0.05 m² and exerts a force of 2 500 N. Calculate the pressure.", equation: "p = F/A", correctAnswer: "50 000 Pa", markScheme: "p = 2 500 ÷ 0.05 = 50 000 Pa (50 kPa)" },
+      { id: "pFA-m3", stem: "A pressure of 150 kPa acts on a surface. The force is 600 N. Calculate the area of the surface.", equation: "p = F/A  →  A = F ÷ p", correctAnswer: "0.004 m²", markScheme: "p = 150 000 Pa;  A = 600 ÷ 150 000 = 0.004 m²" },
+    ],
+    hard: [
+      { id: "pFA-h1", stem: "A cubic block of concrete (density 2 400 kgm⁻³, side length 0.5 m) rests on the ground. Calculate the pressure it exerts on the ground. (g = 9.8 Nkg⁻¹)", equation: "p = F/A;  F = mg;  m = ρV", correctAnswer: "11 760 Pa", markScheme: "V = 0.5³ = 0.125 m³;  m = 2400 × 0.125 = 300 kg;  F = 300 × 9.8 = 2 940 N;  A = 0.5² = 0.25 m²;  p = 2 940 ÷ 0.25 = 11 760 Pa" },
+      { id: "pFA-h2", stem: "A tyre is inflated to a gauge pressure of 200 kPa. The tyre contact area with the road is 120 cm². Calculate the force the tyre exerts on the road.", equation: "p = F/A  →  F = pA", correctAnswer: "2 400 N", markScheme: "p = 200 000 Pa;  A = 120 cm² = 120 × 10⁻⁴ m² = 0.012 m²;  F = 200 000 × 0.012 = 2 400 N" },
+    ],
+  },
+
+  // ── Boyle's Law: p₁V₁ = p₂V₂ ─────────────────────────────────────────────
+  "boyles-law": {
+    easy: [
+      { id: "BL-e1", stem: "A gas has pressure 100 kPa and volume 2 m³ at constant temperature. Calculate the new pressure when the volume is 4 m³.", equation: "p₁V₁ = p₂V₂  →  p₂ = p₁V₁/V₂", options: ["200 kPa", "50 kPa", "25 kPa", "400 kPa"], correctOption: 1, markScheme: "p₂ = p₁V₁/V₂ = 100 × 2 ÷ 4 = 50 kPa" },
+      { id: "BL-e2", stem: "A gas at 200 kPa occupies a volume of 3 L at constant temperature. Calculate the new volume when the pressure is 100 kPa.", equation: "p₁V₁ = p₂V₂  →  V₂ = p₁V₁/p₂", options: ["1.5 L", "6 L", "150 L", "0.67 L"], correctOption: 1, markScheme: "V₂ = p₁V₁/p₂ = 200 × 3 ÷ 100 = 6 L" },
+      { id: "BL-e3", stem: "A fixed mass of gas at 150 kPa has volume 4 m³. At constant temperature, the pressure doubles. Calculate the new volume.", equation: "p₁V₁ = p₂V₂  →  V₂ = p₁V₁/p₂", options: ["8 m³", "4 m³", "2 m³", "6 m³"], correctOption: 2, markScheme: "p₂ = 300 kPa;  V₂ = 150 × 4 ÷ 300 = 2 m³" },
+      { id: "BL-e4", stem: "Gas at 80 kPa and 5 L is compressed to 2 L at constant temperature. Calculate the new pressure.", equation: "p₁V₁ = p₂V₂  →  p₂ = p₁V₁/V₂", options: ["32 kPa", "160 kPa", "200 kPa", "400 kPa"], correctOption: 2, markScheme: "p₂ = 80 × 5 ÷ 2 = 200 kPa" },
+    ],
+    medium: [
+      { id: "BL-m1", stem: "A gas occupies 0.50 m³ at 300 kPa. Calculate the volume when pressure is reduced to 150 kPa at constant temperature.", equation: "p₁V₁ = p₂V₂  →  V₂ = p₁V₁/p₂", correctAnswer: "1.0 m³", markScheme: "V₂ = 300 × 0.50 ÷ 150 = 1.0 m³" },
+      { id: "BL-m2", stem: "A bicycle tyre holds 1.2 × 10⁻³ m³ of air at 300 kPa. The tyre punctures and the air expands to atmospheric pressure (100 kPa). Calculate the new volume.", equation: "p₁V₁ = p₂V₂  →  V₂ = p₁V₁/p₂", correctAnswer: "3.6 × 10⁻³ m³", markScheme: "V₂ = 300 × 1.2 × 10⁻³ ÷ 100 = 3.6 × 10⁻³ m³" },
+      { id: "BL-m3", stem: "A gas syringe holds 60 cm³ of gas at 100 kPa. The plunger is pushed until the pressure is 250 kPa at constant temperature. Calculate the new volume.", equation: "p₁V₁ = p₂V₂  →  V₂ = p₁V₁/p₂", correctAnswer: "24 cm³", markScheme: "V₂ = 100 × 60 ÷ 250 = 24 cm³" },
+    ],
+    hard: [
+      { id: "BL-h1", stem: "A diving tank contains 12 L of air at 15 MPa. A diver breathes at atmospheric pressure (0.1 MPa). Calculate the volume of air available at atmospheric pressure.", equation: "p₁V₁ = p₂V₂  →  V₂ = p₁V₁/p₂", correctAnswer: "1 800 L", markScheme: "V₂ = 15 × 10⁶ × 12 ÷ (0.1 × 10⁶) = 15 × 12 ÷ 0.1 = 1 800 L" },
+      { id: "BL-h2", stem: "A gas bubble in the ocean has volume 2.0 cm³ at a pressure of 4.0 × 10⁵ Pa. The bubble rises to the surface where pressure is 1.0 × 10⁵ Pa. Calculate the new volume.", equation: "p₁V₁ = p₂V₂  →  V₂ = p₁V₁/p₂", correctAnswer: "8.0 cm³", markScheme: "V₂ = 4.0 × 10⁵ × 2.0 ÷ (1.0 × 10⁵) = 8.0 cm³" },
+    ],
+  },
+
+  // ── Gay-Lussac's Law: p₁/T₁ = p₂/T₂ ─────────────────────────────────────
+  "pressure-law": {
+    easy: [
+      { id: "GL-e1", stem: "A fixed volume of gas has pressure 100 kPa at 300 K. Calculate the pressure at 600 K.", equation: "p₁/T₁ = p₂/T₂  →  p₂ = p₁T₂/T₁", options: ["50 kPa", "200 kPa", "400 kPa", "800 kPa"], correctOption: 1, markScheme: "p₂ = 100 × 600 ÷ 300 = 200 kPa" },
+      { id: "GL-e2", stem: "Gas at constant volume has pressure 200 kPa at 400 K. Calculate the temperature when the pressure is 100 kPa.", equation: "p₁/T₁ = p₂/T₂  →  T₂ = T₁p₂/p₁", options: ["800 K", "200 K", "100 K", "50 K"], correctOption: 1, markScheme: "T₂ = 400 × 100 ÷ 200 = 200 K" },
+      { id: "GL-e3", stem: "A sealed container holds gas at 150 kPa and 300 K. The gas is heated to 450 K at constant volume. Calculate the new pressure.", equation: "p₁/T₁ = p₂/T₂  →  p₂ = p₁T₂/T₁", options: ["100 kPa", "225 kPa", "300 kPa", "450 kPa"], correctOption: 1, markScheme: "p₂ = 150 × 450 ÷ 300 = 225 kPa" },
+    ],
+    medium: [
+      { id: "GL-m1", stem: "Gas at constant volume has pressure 250 kPa at 27 °C. Calculate the pressure at 127 °C.", equation: "p₁/T₁ = p₂/T₂  →  p₂ = p₁T₂/T₁", correctAnswer: "333 kPa", markScheme: "T₁ = 27 + 273 = 300 K;  T₂ = 127 + 273 = 400 K;  p₂ = 250 × 400 ÷ 300 = 333 kPa" },
+      { id: "GL-m2", stem: "A sealed container of gas at 300 kPa and 500 K is cooled until the pressure is 200 kPa. Calculate the new temperature.", equation: "p₁/T₁ = p₂/T₂  →  T₂ = T₁p₂/p₁", correctAnswer: "333 K", markScheme: "T₂ = 500 × 200 ÷ 300 = 333 K" },
+      { id: "GL-m3", stem: "Car tyres have pressure 200 kPa at 17 °C. After driving, the tyre temperature rises to 47 °C. Calculate the new pressure (assume constant volume).", equation: "p₁/T₁ = p₂/T₂  →  p₂ = p₁T₂/T₁", correctAnswer: "220 kPa", markScheme: "T₁ = 290 K;  T₂ = 320 K;  p₂ = 200 × 320 ÷ 290 = 221 kPa ≈ 220 kPa" },
+    ],
+    hard: [
+      { id: "GL-h1", stem: "A sealed gas container has pressure 1.2 × 10⁵ Pa at −23 °C. Calculate the pressure at 177 °C.", equation: "p₁/T₁ = p₂/T₂  →  p₂ = p₁T₂/T₁", correctAnswer: "2.16 × 10⁵ Pa", markScheme: "T₁ = −23 + 273 = 250 K;  T₂ = 177 + 273 = 450 K;  p₂ = 1.2 × 10⁵ × 450 ÷ 250 = 2.16 × 10⁵ Pa" },
+      { id: "GL-h2", stem: "A gas at 1.5 × 10⁵ Pa and 27 °C is heated at constant volume. The pressure increases to 2.0 × 10⁵ Pa. Calculate the new temperature in °C.", equation: "p₁/T₁ = p₂/T₂  →  T₂ = T₁p₂/p₁", correctAnswer: "127 °C", markScheme: "T₁ = 300 K;  T₂ = 300 × 2.0 × 10⁵ ÷ 1.5 × 10⁵ = 400 K;  T₂(°C) = 400 − 273 = 127 °C" },
+    ],
+  },
+
+  // ── Charles' Law: V₁/T₁ = V₂/T₂ ──────────────────────────────────────────
+  "charles-law": {
+    easy: [
+      { id: "CL-e1", stem: "A gas has volume 2 L at 300 K (constant pressure). Calculate the volume at 600 K.", equation: "V₁/T₁ = V₂/T₂  →  V₂ = V₁T₂/T₁", options: ["1 L", "4 L", "6 L", "3 L"], correctOption: 1, markScheme: "V₂ = 2 × 600 ÷ 300 = 4 L" },
+      { id: "CL-e2", stem: "A gas at constant pressure has volume 6 L at 300 K. Calculate the temperature when the volume is 3 L.", equation: "V₁/T₁ = V₂/T₂  →  T₂ = T₁V₂/V₁", options: ["600 K", "150 K", "100 K", "450 K"], correctOption: 1, markScheme: "T₂ = 300 × 3 ÷ 6 = 150 K" },
+      { id: "CL-e3", stem: "Gas at 400 K occupies 4 m³ at constant pressure. Calculate the volume at 200 K.", equation: "V₁/T₁ = V₂/T₂  →  V₂ = V₁T₂/T₁", options: ["8 m³", "2 m³", "1 m³", "6 m³"], correctOption: 1, markScheme: "V₂ = 4 × 200 ÷ 400 = 2 m³" },
+    ],
+    medium: [
+      { id: "CL-m1", stem: "A gas at constant pressure has volume 3 m³ at 27 °C. Calculate the volume at 0 °C.", equation: "V₁/T₁ = V₂/T₂  →  V₂ = V₁T₂/T₁", correctAnswer: "2.73 m³", markScheme: "T₁ = 300 K;  T₂ = 273 K;  V₂ = 3 × 273 ÷ 300 = 2.73 m³" },
+      { id: "CL-m2", stem: "A balloon has volume 2.4 L at 17 °C. It is heated to 77 °C at constant pressure. Calculate the new volume.", equation: "V₁/T₁ = V₂/T₂  →  V₂ = V₁T₂/T₁", correctAnswer: "2.9 L", markScheme: "T₁ = 290 K;  T₂ = 350 K;  V₂ = 2.4 × 350 ÷ 290 = 2.90 L" },
+      { id: "CL-m3", stem: "A gas occupies 5 L at 127 °C. At constant pressure, what temperature is needed to reduce its volume to 3 L?", equation: "V₁/T₁ = V₂/T₂  →  T₂ = T₁V₂/V₁", correctAnswer: "240 K (−33 °C)", markScheme: "T₁ = 400 K;  T₂ = 400 × 3 ÷ 5 = 240 K;  T₂(°C) = 240 − 273 = −33 °C" },
+    ],
+    hard: [
+      { id: "CL-h1", stem: "A gas at constant pressure occupies 450 cm³ at −23 °C. Calculate its volume at 127 °C.", equation: "V₁/T₁ = V₂/T₂  →  V₂ = V₁T₂/T₁", correctAnswer: "720 cm³", markScheme: "T₁ = −23 + 273 = 250 K;  T₂ = 127 + 273 = 400 K;  V₂ = 450 × 400 ÷ 250 = 720 cm³" },
+      { id: "CL-h2", stem: "A gas occupies 2.0 m³ at 17 °C. At what temperature (in °C) will the volume be 2.5 m³ at the same pressure?", equation: "V₁/T₁ = V₂/T₂  →  T₂ = T₁V₂/V₁", correctAnswer: "89.5 °C", markScheme: "T₁ = 290 K;  T₂ = 290 × 2.5 ÷ 2.0 = 362.5 K;  T₂(°C) = 362.5 − 273 = 89.5 °C" },
+    ],
+  },
+
+  // ── Combined Gas Law: p₁V₁/T₁ = p₂V₂/T₂ ─────────────────────────────────
+  "gas-law": {
+    easy: [
+      { id: "GL2-e1", stem: "A gas has p₁ = 100 kPa, V₁ = 2 m³, T₁ = 300 K. The pressure doubles to p₂ = 200 kPa and T₂ = 300 K. Calculate V₂.", equation: "p₁V₁/T₁ = p₂V₂/T₂  →  V₂ = p₁V₁T₂/(T₁p₂)", options: ["4 m³", "1 m³", "2 m³", "0.5 m³"], correctOption: 1, markScheme: "V₂ = 100 × 2 × 300 ÷ (300 × 200) = 60000 ÷ 60000 = 1 m³" },
+      { id: "GL2-e2", stem: "Gas at p₁ = 150 kPa, V₁ = 4 L, T₁ = 300 K is heated to T₂ = 600 K at constant pressure. Calculate V₂.", equation: "p₁V₁/T₁ = p₂V₂/T₂;  p₁ = p₂  →  V₂ = V₁T₂/T₁", options: ["2 L", "8 L", "6 L", "12 L"], correctOption: 1, markScheme: "p₁ = p₂;  V₂ = V₁ × T₂/T₁ = 4 × 600/300 = 8 L" },
+      { id: "GL2-e3", stem: "Gas has p₁ = 200 kPa, V₁ = 3 L, T₁ = 400 K. Calculate V₂ when p₂ = 100 kPa and T₂ = 200 K.", equation: "p₁V₁/T₁ = p₂V₂/T₂  →  V₂ = p₁V₁T₂/(T₁p₂)", options: ["1.5 L", "3 L", "6 L", "12 L"], correctOption: 1, markScheme: "V₂ = 200 × 3 × 200 ÷ (400 × 100) = 120000 ÷ 40000 = 3 L" },
+    ],
+    medium: [
+      { id: "GL2-m1", stem: "A gas at 100 kPa, 2.0 L, 27 °C is compressed to 1.0 L and heated to 127 °C. Calculate the new pressure.", equation: "p₁V₁/T₁ = p₂V₂/T₂  →  p₂ = p₁V₁T₂/(V₂T₁)", correctAnswer: "267 kPa", markScheme: "T₁ = 300 K;  T₂ = 400 K;  p₂ = 100 × 2.0 × 400 ÷ (1.0 × 300) = 80000 ÷ 300 = 267 kPa" },
+      { id: "GL2-m2", stem: "Gas at 300 kPa, 0.5 m³, 500 K expands at constant temperature to 1.0 m³. Calculate the new pressure.", equation: "p₁V₁/T₁ = p₂V₂/T₂;  T₁ = T₂  →  p₁V₁ = p₂V₂", correctAnswer: "150 kPa", markScheme: "T₁ = T₂;  p₂ = p₁V₁/V₂ = 300 × 0.5 ÷ 1.0 = 150 kPa" },
+      { id: "GL2-m3", stem: "Gas at 200 kPa, 3 L, 300 K changes to 250 kPa and 450 K. Calculate the new volume.", equation: "p₁V₁/T₁ = p₂V₂/T₂  →  V₂ = p₁V₁T₂/(T₁p₂)", correctAnswer: "3.6 L", markScheme: "V₂ = 200 × 3 × 450 ÷ (300 × 250) = 270000 ÷ 75000 = 3.6 L" },
+    ],
+    hard: [
+      { id: "GL2-h1", stem: "A gas at 1.2 × 10⁵ Pa, 2.5 × 10⁻³ m³, 27 °C is compressed to 1.0 × 10⁻³ m³ and heated to 227 °C. Calculate the new pressure.", equation: "p₁V₁/T₁ = p₂V₂/T₂  →  p₂ = p₁V₁T₂/(V₂T₁)", correctAnswer: "5.0 × 10⁵ Pa", markScheme: "T₁ = 300 K;  T₂ = 500 K;  p₂ = (1.2 × 10⁵ × 2.5 × 10⁻³ × 500) ÷ (1.0 × 10⁻³ × 300) = 1.5 × 10⁵ ÷ 3.0 × 10⁻¹ = 5.0 × 10⁵ Pa" },
+      { id: "GL2-h2", stem: "A sealed gas at 3.0 × 10⁵ Pa, 40 cm³, −23 °C is heated until T₂ = 227 °C and V₂ = 80 cm³. Calculate the new pressure.", equation: "p₁V₁/T₁ = p₂V₂/T₂  →  p₂ = p₁V₁T₂/(V₂T₁)", correctAnswer: "3.0 × 10⁵ Pa", markScheme: "T₁ = 250 K;  T₂ = 500 K;  p₂ = 3.0 × 10⁵ × 40 × 500 ÷ (80 × 250) = 6.0 × 10⁹ ÷ 2.0 × 10⁴ = 3.0 × 10⁵ Pa" },
+    ],
+  },
+
+  // ── P = V²/R (N5) ──────────────────────────────────────────────────────────
+  "P-V2R-n5": {
+    easy: [
+      { id: "PV2Rn5-e1", stem: "A 12 V voltage is applied across a 4 Ω resistor. Calculate the power.", equation: "P = V²/R", options: ["48 W", "36 W", "3 W", "6 W"], correctOption: 1, markScheme: "P = 12² ÷ 4 = 144 ÷ 4 = 36 W" },
+      { id: "PV2Rn5-e2", stem: "A 50 W device operates at 10 V. Calculate the resistance.", equation: "P = V²/R  →  R = V² ÷ P", options: ["500 Ω", "5 Ω", "2 Ω", "0.5 Ω"], correctOption: 2, markScheme: "R = 10² ÷ 50 = 100 ÷ 50 = 2 Ω" },
+      { id: "PV2Rn5-e3", stem: "A 25 Ω resistor dissipates 100 W. Calculate the voltage across it.", equation: "P = V²/R  →  V = √(PR)", options: ["4 V", "50 V", "2 500 V", "2 V"], correctOption: 1, markScheme: "V = √(100 × 25) = √2 500 = 50 V" },
+    ],
+    medium: [
+      { id: "PV2Rn5-m1", stem: "A 230 V appliance has a resistance of 52.9 Ω. Calculate the power.", equation: "P = V²/R", correctAnswer: "1 000 W", markScheme: "P = 230² ÷ 52.9 = 52 900 ÷ 52.9 = 1 000 W" },
+      { id: "PV2Rn5-m2", stem: "A 60 W lamp operates at 230 V. Calculate its resistance.", equation: "P = V²/R  →  R = V² ÷ P", correctAnswer: "882 Ω", markScheme: "R = 230² ÷ 60 = 52 900 ÷ 60 = 882 Ω" },
+      { id: "PV2Rn5-m3", stem: "A resistor of 400 Ω dissipates 25 W. Calculate the voltage across it.", equation: "P = V²/R  →  V = √(PR)", correctAnswer: "100 V", markScheme: "V = √(25 × 400) = √10 000 = 100 V" },
+    ],
+    hard: [
+      { id: "PV2Rn5-h1", stem: "A device connected to a 12 V supply dissipates 720 mW. Calculate its resistance.", equation: "P = V²/R  →  R = V² ÷ P", correctAnswer: "200 Ω", markScheme: "P = 0.720 W;  R = 12² ÷ 0.720 = 144 ÷ 0.720 = 200 Ω" },
+      { id: "PV2Rn5-h2", stem: "A 2.2 kΩ resistor dissipates 4.4 W. Calculate the voltage across it.", equation: "P = V²/R  →  V = √(PR)", correctAnswer: "98.4 V", markScheme: "R = 2 200 Ω;  V = √(4.4 × 2 200) = √9 680 ≈ 98.4 V" },
     ],
   },
 }
