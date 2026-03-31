@@ -11208,7 +11208,7 @@ const [isOpen, setIsOpen] = useState(false)
   const isTeacher = currentUser?.accountType === "teacher"
   const isPupil = !isTeacher
   const showOutcomes = isPupil && view !== "landing" && view !== "subject-select"
-  const showCharKeyboard = view === "quiz" || view === "definitions" || view === "calculations" || view === "assignment" || view === "exam-paper" || view === "electronics-tool"
+  const showCharKeyboard = view === "quiz" || view === "definitions" || view === "calculations" || view === "assignment" || view === "exam-paper" || view === "electronics-tool" || view === "experimental-techniques" || view === "bio-maths"
   const showDataBooklet = selectedSubject === "Chemistry" && view !== "landing" && view !== "subject-select"
   
   return (
@@ -11350,6 +11350,96 @@ interface ChemEquationInfo {
   variables: { symbol: string; meaning: string; unit: string }[]
 }
 
+// ─── N5 Chemistry Data Booklet Extra Tables ─────────────────────────────────
+
+const N5_CHEM_IONS = [
+  { name: "Hydroxide",        formula: "OH⁻",      charge: "-1" },
+  { name: "Nitrate",          formula: "NO₃⁻",     charge: "-1" },
+  { name: "Hydrogencarbonate",formula: "HCO₃⁻",    charge: "-1" },
+  { name: "Carbonate",        formula: "CO₃²⁻",    charge: "-2" },
+  { name: "Sulfate",          formula: "SO₄²⁻",    charge: "-2" },
+  { name: "Sulfite",          formula: "SO₃²⁻",    charge: "-2" },
+  { name: "Phosphate",        formula: "PO₄³⁻",    charge: "-3" },
+  { name: "Ammonium",         formula: "NH₄⁺",     charge: "+1" },
+  { name: "Dichromate",       formula: "Cr₂O₇²⁻",  charge: "-2" },
+  { name: "Permanganate",     formula: "MnO₄⁻",    charge: "-1" },
+]
+
+// S = soluble, SpS = sparingly soluble, I = insoluble, - = not applicable
+const N5_CHEM_SOLUBILITY = {
+  anions: ["Carbonate", "Chloride", "Fluoride", "Hydroxide", "Iodide", "Nitrate", "Oxide", "Phosphate", "Sulfate", "Sulfite"],
+  rows: [
+    { cation: "Na⁺/K⁺/NH₄⁺", values: ["S","S","S","S","S","S","S","S","S","S"] },
+    { cation: "Ca²⁺",          values: ["I","S","I","SpS","S","S","S","I","SpS","I"] },
+    { cation: "Ba²⁺",          values: ["I","S","SpS","S","S","S","S","I","I","I"] },
+    { cation: "Mg²⁺",          values: ["I","S","S","I","S","S","S","I","S","I"] },
+    { cation: "Al³⁺",          values: ["-","S","S","I","S","S","I","I","S","-"] },
+    { cation: "Pb²⁺",          values: ["I","SpS","I","I","I","S","I","I","I","I"] },
+    { cation: "Fe²⁺",          values: ["I","S","S","I","S","S","I","I","S","I"] },
+    { cation: "Fe³⁺",          values: ["-","S","S","I","S","S","I","I","S","-"] },
+    { cation: "Cu²⁺",          values: ["I","S","S","I","S","S","I","I","S","I"] },
+    { cation: "Zn²⁺",          values: ["I","S","S","I","S","S","I","I","S","I"] },
+    { cation: "Ag⁺",           values: ["I","I","SpS","I","I","S","I","I","SpS","I"] },
+  ],
+}
+
+const N5_CHEM_BP_INORGANIC = [
+  { compound: "NaCl",   name: "Sodium chloride",      mp: 801,   bp: 1413 },
+  { compound: "MgO",    name: "Magnesium oxide",       mp: 2852,  bp: 3600 },
+  { compound: "SiO₂",  name: "Silicon dioxide",       mp: 1713,  bp: 2230 },
+  { compound: "SO₂",   name: "Sulfur dioxide",        mp: -72,   bp: -10  },
+  { compound: "HCl",   name: "Hydrogen chloride",     mp: -114,  bp: -85  },
+  { compound: "H₂O",   name: "Water",                 mp: 0,     bp: 100  },
+  { compound: "NH₃",   name: "Ammonia",               mp: -78,   bp: -33  },
+  { compound: "NaOH",  name: "Sodium hydroxide",      mp: 318,   bp: 1388 },
+  { compound: "Al₂O₃", name: "Aluminium oxide",       mp: 2072,  bp: 2977 },
+  { compound: "CaCO₃", name: "Calcium carbonate",     mp: 825,   bp: null },
+  { compound: "KNO₃",  name: "Potassium nitrate",     mp: 334,   bp: 400  },
+  { compound: "H₂SO₄", name: "Sulfuric acid",         mp: 10,    bp: 337  },
+  { compound: "HNO₃",  name: "Nitric acid",           mp: -42,   bp: 83   },
+]
+
+const N5_CHEM_BP_ORGANIC = [
+  { compound: "CH₄",    name: "Methane",        type: "Alkane",  mp: -182, bp: -161 },
+  { compound: "C₂H₆",  name: "Ethane",         type: "Alkane",  mp: -183, bp: -89  },
+  { compound: "C₃H₈",  name: "Propane",        type: "Alkane",  mp: -188, bp: -42  },
+  { compound: "C₄H₁₀", name: "Butane",         type: "Alkane",  mp: -138, bp: -1   },
+  { compound: "C₅H₁₂", name: "Pentane",        type: "Alkane",  mp: -130, bp: 36   },
+  { compound: "C₆H₁₄", name: "Hexane",         type: "Alkane",  mp: -95,  bp: 69   },
+  { compound: "C₂H₄",  name: "Ethene",         type: "Alkene",  mp: -169, bp: -104 },
+  { compound: "C₃H₆",  name: "Propene",        type: "Alkene",  mp: -185, bp: -47  },
+  { compound: "CH₃OH", name: "Methanol",       type: "Alcohol", mp: -98,  bp: 65   },
+  { compound: "C₂H₅OH",name: "Ethanol",        type: "Alcohol", mp: -117, bp: 78   },
+  { compound: "C₃H₇OH",name: "Propan-1-ol",   type: "Alcohol", mp: -126, bp: 97   },
+  { compound: "C₄H₉OH",name: "Butan-1-ol",    type: "Alcohol", mp: -89,  bp: 118  },
+  { compound: "HCOOH",  name: "Methanoic acid",type: "Carboxylic Acid", mp: 8, bp: 101 },
+  { compound: "CH₃COOH",name: "Ethanoic acid", type: "Carboxylic Acid", mp: 17, bp: 118 },
+]
+
+// Electrochemical series from SQA N5 data booklet - from most negative to most positive
+const N5_CHEM_ELECTROCHEMICAL = [
+  { halfEquation: "Li⁺(aq) + e⁻ → Li(s)",                        eStandard: "-3.05" },
+  { halfEquation: "K⁺(aq) + e⁻ → K(s)",                          eStandard: "-2.92" },
+  { halfEquation: "Ca²⁺(aq) + 2e⁻ → Ca(s)",                      eStandard: "-2.87" },
+  { halfEquation: "Na⁺(aq) + e⁻ → Na(s)",                        eStandard: "-2.71" },
+  { halfEquation: "Mg²⁺(aq) + 2e⁻ → Mg(s)",                      eStandard: "-2.36" },
+  { halfEquation: "Al³⁺(aq) + 3e⁻ → Al(s)",                      eStandard: "-1.66" },
+  { halfEquation: "Zn²⁺(aq) + 2e⁻ → Zn(s)",                      eStandard: "-0.76" },
+  { halfEquation: "Fe²⁺(aq) + 2e⁻ → Fe(s)",                      eStandard: "-0.44" },
+  { halfEquation: "Ni²⁺(aq) + 2e⁻ → Ni(s)",                      eStandard: "-0.25" },
+  { halfEquation: "Pb²⁺(aq) + 2e⁻ → Pb(s)",                      eStandard: "-0.13" },
+  { halfEquation: "2H⁺(aq) + 2e⁻ → H₂(g)",                       eStandard: "0.00"  },
+  { halfEquation: "Cu²⁺(aq) + 2e⁻ → Cu(s)",                      eStandard: "+0.34" },
+  { halfEquation: "O₂(g) + 2H₂O(l) + 4e⁻ → 4OH⁻(aq)",           eStandard: "+0.40" },
+  { halfEquation: "I₂(s) + 2e⁻ → 2I⁻(aq)",                       eStandard: "+0.54" },
+  { halfEquation: "Fe³⁺(aq) + e⁻ → Fe²⁺(aq)",                    eStandard: "+0.77" },
+  { halfEquation: "Ag⁺(aq) + e⁻ → Ag(s)",                        eStandard: "+0.80" },
+  { halfEquation: "Br₂(aq) + 2e⁻ → 2Br⁻(aq)",                    eStandard: "+1.07" },
+  { halfEquation: "Cl₂(g) + 2e⁻ → 2Cl⁻(aq)",                     eStandard: "+1.36" },
+  { halfEquation: "MnO₄⁻(aq) + 8H⁺(aq) + 5e⁻ → Mn²⁺(aq) + 4H₂O(l)", eStandard: "+1.51" },
+  { halfEquation: "F₂(g) + 2e⁻ → 2F⁻(aq)",                       eStandard: "+2.87" },
+]
+
 const N5_CHEM_EQUATIONS: ChemEquationInfo[] = [
   {
     id: "heat-energy",
@@ -11421,7 +11511,7 @@ const N5_CHEM_EQUATIONS: ChemEquationInfo[] = [
 // ─── ChemDataBooklet ──────────────────────────────────────────────────────────
 
 function ChemDataBooklet({ isDarkMode }: { isDarkMode: boolean }) {
-  const [activeTab, setActiveTab] = useState<"elements" | "equations">("elements")
+  const [activeTab, setActiveTab] = useState<"elements" | "equations" | "ions" | "solubility" | "inorganic-bp" | "organic-bp" | "electrochemical">("elements")
   const [selectedElement, setSelectedElement] = useState<ChemElement | null>(null)
   const [selectedEquation, setSelectedEquation] = useState<ChemEquationInfo | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
@@ -11454,7 +11544,7 @@ function ChemDataBooklet({ isDarkMode }: { isDarkMode: boolean }) {
     "Rates of Reaction": "border-violet-400 bg-violet-50 dark:bg-violet-900/20",
   }
 
-  function handleTabChange(tab: "elements" | "equations") {
+  function handleTabChange(tab: "elements" | "equations" | "ions" | "solubility" | "inorganic-bp" | "organic-bp" | "electrochemical") {
     setActiveTab(tab)
     setSelectedElement(null)
     setSelectedEquation(null)
@@ -11512,13 +11602,13 @@ function ChemDataBooklet({ isDarkMode }: { isDarkMode: boolean }) {
 
   return (
     <div className="space-y-4">
-      {/* Tab switcher */}
-      <div className="flex gap-2">
-        {(["elements", "equations"] as const).map(tab => (
+      {/* Tab switcher - row 1 */}
+      <div className="flex gap-1.5">
+        {(["elements", "equations", "ions"] as const).map(tab => (
           <button
             key={tab}
             onClick={() => handleTabChange(tab)}
-            className={`flex-1 py-2 rounded-xl font-black text-sm uppercase tracking-widest transition-all ${
+            className={`flex-1 py-1.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
               activeTab === tab
                 ? "bg-teal-500 text-white shadow"
                 : isDarkMode
@@ -11526,7 +11616,25 @@ function ChemDataBooklet({ isDarkMode }: { isDarkMode: boolean }) {
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             }`}
           >
-            {tab === "elements" ? "⚛ Elements" : "📐 Equations"}
+            {tab === "elements" ? "⚛ Elements" : tab === "equations" ? "📐 Equations" : "⚗ Ions"}
+          </button>
+        ))}
+      </div>
+      {/* Tab switcher - row 2 */}
+      <div className="flex gap-1.5">
+        {(["solubility", "inorganic-bp", "organic-bp", "electrochemical"] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => handleTabChange(tab)}
+            className={`flex-1 py-1.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
+              activeTab === tab
+                ? "bg-teal-500 text-white shadow"
+                : isDarkMode
+                  ? "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            {tab === "solubility" ? "💧 Solubility" : tab === "inorganic-bp" ? "🧱 Inorganic" : tab === "organic-bp" ? "🌿 Organic" : "⚡ Redox"}
           </button>
         ))}
       </div>
@@ -11597,14 +11705,20 @@ function ChemDataBooklet({ isDarkMode }: { isDarkMode: boolean }) {
             <div className="overflow-x-auto -mx-1 px-1">
               {/* Period × Group grid */}
               <div style={{ minWidth: 340 }}>
-                {/* Group numbers header */}
+                {/* Group numbers header - SQA style 1-8(0) */}
                 <div className="flex" style={{ marginLeft: "2rem" }}>
-                  {GROUPS.map(g => (
-                    <div
-                      key={g}
-                      className={`text-[8px] font-black text-center flex-1 ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}
-                    >{g}</div>
-                  ))}
+                  {GROUPS.map(g => {
+                    // SQA N5 data booklet uses traditional group numbering:
+                    // Groups 1-2 stay as 1-2, groups 3-12 (transition metals) shown blank,
+                    // groups 13-17 mapped to 3-7, group 18 = 0
+                    const sqaLabel = g <= 2 ? String(g) : g >= 13 && g <= 17 ? String(g - 10) : g === 18 ? "0" : ""
+                    return (
+                      <div
+                        key={g}
+                        className={`text-[8px] font-black text-center flex-1 ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}
+                      >{sqaLabel}</div>
+                    )
+                  })}
                 </div>
 
                 {/* Main table rows */}
@@ -11761,6 +11875,152 @@ function ChemDataBooklet({ isDarkMode }: { isDarkMode: boolean }) {
               </button>
             )
           })}
+        </div>
+      )}
+
+      {/* ── Ions tab ── */}
+      {activeTab === "ions" && (
+        <div className="space-y-3">
+          <p className={`text-xs font-semibold ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+            Formulae of Selected Ions containing more than one kind of Atom
+          </p>
+          <div className={`rounded-2xl overflow-hidden border ${isDarkMode ? "border-slate-700" : "border-slate-200"}`}>
+            <div className={`grid grid-cols-3 px-3 py-2 text-[10px] font-black uppercase tracking-widest ${isDarkMode ? "bg-slate-700 text-slate-300" : "bg-slate-100 text-slate-500"}`}>
+              <span>Name</span><span>Formula</span><span>Charge</span>
+            </div>
+            {N5_CHEM_IONS.map((ion, i) => (
+              <div key={ion.name} className={`grid grid-cols-3 px-3 py-2 text-xs border-t ${
+                isDarkMode ? "border-slate-700" : "border-slate-100"
+              } ${i % 2 === 0 ? (isDarkMode ? "bg-slate-800" : "bg-white") : (isDarkMode ? "bg-slate-800/50" : "bg-slate-50")}`}>
+                <span className={`font-semibold ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>{ion.name}</span>
+                <span className={`font-black text-teal-600 dark:text-teal-400`}>{ion.formula}</span>
+                <span className={`font-bold ${ion.charge.startsWith("+") ? "text-rose-500" : "text-blue-500"}`}>{ion.charge}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Solubility tab ── */}
+      {activeTab === "solubility" && (
+        <div className="space-y-3">
+          <p className={`text-xs font-semibold ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+            Solubilities of Selected Compounds in Water
+          </p>
+          <div className={`text-[9px] flex gap-3 flex-wrap ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+            <span><span className="font-black text-emerald-500">S</span> = Soluble</span>
+            <span><span className="font-black text-amber-500">SpS</span> = Sparingly Soluble</span>
+            <span><span className="font-black text-rose-500">I</span> = Insoluble</span>
+            <span><span className="font-black text-slate-400">-</span> = N/A</span>
+          </div>
+          <div className="overflow-x-auto -mx-1 px-1">
+            <div style={{ minWidth: 500 }}>
+              <div className={`rounded-2xl overflow-hidden border ${isDarkMode ? "border-slate-700" : "border-slate-200"}`}>
+                {/* Header row */}
+                <div className={`flex px-2 py-2 text-[8px] font-black uppercase ${isDarkMode ? "bg-slate-700 text-slate-300" : "bg-slate-100 text-slate-500"}`}>
+                  <div style={{ width: 80, flexShrink: 0 }}>Cation ↓ / Anion →</div>
+                  {N5_CHEM_SOLUBILITY.anions.map(a => (
+                    <div key={a} className="flex-1 text-center" style={{ minWidth: 0 }}>{a.slice(0,4)}</div>
+                  ))}
+                </div>
+                {N5_CHEM_SOLUBILITY.rows.map((row, i) => (
+                  <div key={row.cation} className={`flex px-2 py-1.5 text-[9px] border-t items-center ${
+                    isDarkMode ? "border-slate-700" : "border-slate-100"
+                  } ${i % 2 === 0 ? (isDarkMode ? "bg-slate-800" : "bg-white") : (isDarkMode ? "bg-slate-800/50" : "bg-slate-50")}`}>
+                    <div style={{ width: 80, flexShrink: 0 }} className={`font-bold ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>{row.cation}</div>
+                    {row.values.map((v, j) => (
+                      <div key={j} className={`flex-1 text-center font-black ${
+                        v === "S" ? "text-emerald-500" :
+                        v === "SpS" ? "text-amber-500" :
+                        v === "I" ? "text-rose-500" :
+                        isDarkMode ? "text-slate-500" : "text-slate-400"
+                      }`} style={{ minWidth: 0 }}>{v}</div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Inorganic BP tab ── */}
+      {activeTab === "inorganic-bp" && (
+        <div className="space-y-3">
+          <p className={`text-xs font-semibold ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+            Melting and Boiling Points of Selected Inorganic Compounds
+          </p>
+          <div className={`rounded-2xl overflow-hidden border ${isDarkMode ? "border-slate-700" : "border-slate-200"}`}>
+            <div className={`grid grid-cols-4 px-3 py-2 text-[10px] font-black uppercase tracking-widest ${isDarkMode ? "bg-slate-700 text-slate-300" : "bg-slate-100 text-slate-500"}`}>
+              <span>Formula</span><span>Name</span><span>MP (°C)</span><span>BP (°C)</span>
+            </div>
+            {N5_CHEM_BP_INORGANIC.map((c, i) => (
+              <div key={c.compound} className={`grid grid-cols-4 px-3 py-2 text-xs border-t ${
+                isDarkMode ? "border-slate-700" : "border-slate-100"
+              } ${i % 2 === 0 ? (isDarkMode ? "bg-slate-800" : "bg-white") : (isDarkMode ? "bg-slate-800/50" : "bg-slate-50")}`}>
+                <span className="font-black text-teal-600 dark:text-teal-400">{c.compound}</span>
+                <span className={`font-semibold ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>{c.name}</span>
+                <span className={`font-bold ${isDarkMode ? "text-amber-300" : "text-amber-600"}`}>{c.mp}</span>
+                <span className={`font-bold ${isDarkMode ? "text-sky-300" : "text-sky-600"}`}>{c.bp ?? "—"}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Organic BP tab ── */}
+      {activeTab === "organic-bp" && (
+        <div className="space-y-3">
+          <p className={`text-xs font-semibold ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+            Melting and Boiling Points of Selected Organic Compounds
+          </p>
+          <div className={`rounded-2xl overflow-hidden border ${isDarkMode ? "border-slate-700" : "border-slate-200"}`}>
+            <div className={`grid grid-cols-5 px-3 py-2 text-[10px] font-black uppercase tracking-widest ${isDarkMode ? "bg-slate-700 text-slate-300" : "bg-slate-100 text-slate-500"}`}>
+              <span>Formula</span><span>Name</span><span>Type</span><span>MP (°C)</span><span>BP (°C)</span>
+            </div>
+            {N5_CHEM_BP_ORGANIC.map((c, i) => (
+              <div key={c.compound} className={`grid grid-cols-5 px-3 py-2 text-xs border-t ${
+                isDarkMode ? "border-slate-700" : "border-slate-100"
+              } ${i % 2 === 0 ? (isDarkMode ? "bg-slate-800" : "bg-white") : (isDarkMode ? "bg-slate-800/50" : "bg-slate-50")}`}>
+                <span className="font-black text-teal-600 dark:text-teal-400">{c.compound}</span>
+                <span className={`font-semibold ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>{c.name}</span>
+                <span className={`text-[10px] font-bold ${
+                  c.type === "Alkane" ? "text-violet-500" :
+                  c.type === "Alkene" ? "text-emerald-500" :
+                  c.type === "Alcohol" ? "text-amber-500" :
+                  "text-rose-500"
+                }`}>{c.type}</span>
+                <span className={`font-bold ${isDarkMode ? "text-amber-300" : "text-amber-600"}`}>{c.mp}</span>
+                <span className={`font-bold ${isDarkMode ? "text-sky-300" : "text-sky-600"}`}>{c.bp}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Electrochemical tab ── */}
+      {activeTab === "electrochemical" && (
+        <div className="space-y-3">
+          <p className={`text-xs font-semibold ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+            Electrochemical Series (Reduction Reactions) — most negative to most positive
+          </p>
+          <div className={`rounded-2xl overflow-hidden border ${isDarkMode ? "border-slate-700" : "border-slate-200"}`}>
+            <div className={`grid grid-cols-5 px-3 py-2 text-[10px] font-black uppercase tracking-widest ${isDarkMode ? "bg-slate-700 text-slate-300" : "bg-slate-100 text-slate-500"}`}>
+              <span className="col-span-4">Half-Equation</span><span>E° (V)</span>
+            </div>
+            {N5_CHEM_ELECTROCHEMICAL.map((r, i) => (
+              <div key={i} className={`grid grid-cols-5 px-3 py-2 text-xs border-t ${
+                isDarkMode ? "border-slate-700" : "border-slate-100"
+              } ${i % 2 === 0 ? (isDarkMode ? "bg-slate-800" : "bg-white") : (isDarkMode ? "bg-slate-800/50" : "bg-slate-50")}`}>
+                <span className={`col-span-4 font-semibold ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>{r.halfEquation}</span>
+                <span className={`font-black text-right ${
+                  r.eStandard.startsWith("+") ? "text-emerald-500" :
+                  r.eStandard === "0.00" ? "text-slate-400" :
+                  "text-rose-500"
+                }`}>{r.eStandard}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -13826,9 +14086,26 @@ export default function App() {
     }
   }
 
+  // Subject-based accent colours
+  const subjectAccent = selectedSubject === "Biology"
+    ? isDarkMode
+      ? "bg-gradient-to-br from-slate-950 via-yellow-950/20 to-lime-950/30"
+      : "bg-gradient-to-br from-lime-50 via-yellow-50 to-slate-50"
+    : selectedSubject === "Chemistry"
+    ? isDarkMode
+      ? "bg-gradient-to-br from-slate-950 via-fuchsia-950/20 to-pink-950/30"
+      : "bg-gradient-to-br from-fuchsia-50 via-pink-50 to-slate-50"
+    : selectedSubject === "Physics" || selectedSubject === "Practical Electronics"
+    ? isDarkMode
+      ? "bg-gradient-to-br from-slate-950 via-sky-950/20 to-cyan-950/30"
+      : "bg-gradient-to-br from-sky-50 via-cyan-50 to-slate-50"
+    : isDarkMode ? "bg-slate-950" : "bg-slate-50"
+
   return (
     <div
-      className={`min-h-screen transition-colors duration-500 ${isDarkMode ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-900"}`}
+      className={`min-h-screen transition-colors duration-500 ${isDarkMode ? "text-slate-100" : "text-slate-900"} ${
+        view === "subject-select" ? (isDarkMode ? "bg-slate-950" : "bg-slate-50") : subjectAccent
+      }`}
     >
       <Navbar
         view={view}
