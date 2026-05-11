@@ -560,7 +560,10 @@ function loadCurrentUser(): UserAccount | null {
   if (typeof window === "undefined") return null
   try {
     const raw = localStorage.getItem("trinfinity_current_user")
-    return raw ? JSON.parse(raw) : null
+    if (!raw) return null
+    const parsed: UserAccount = JSON.parse(raw)
+    if (!parsed) return null
+    return parsed.password ? { ...parsed, password: undefined } : parsed
   } catch {
     return null
   }
@@ -568,7 +571,10 @@ function loadCurrentUser(): UserAccount | null {
 
 function saveCurrentUser(user: UserAccount | null): void {
   if (typeof window === "undefined") return
-  if (user) localStorage.setItem("trinfinity_current_user", JSON.stringify(user))
+  if (user) {
+    const sessionUser = user.password ? { ...user, password: undefined } : user
+    localStorage.setItem("trinfinity_current_user", JSON.stringify(sessionUser))
+  }
   else localStorage.removeItem("trinfinity_current_user")
 }
 
