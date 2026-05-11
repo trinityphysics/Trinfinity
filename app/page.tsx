@@ -44,6 +44,11 @@ import {
   FREQ_PERIOD_EXAM,
 } from "@/data/physics/n5/calculations/frequency-period"
 import {
+  DVT_EASY,
+  DVT_MEDIUM,
+  DVT_HARD,
+} from "@/data/physics/n5/calculations/distance-speed-time"
+import {
   ChevronLeft,
   ChevronRight,
   Home,
@@ -3384,22 +3389,9 @@ const EQUATION_QUESTION_BANKS: Record<string, { easy: CalcQuestion[]; medium: Ca
 
   // ── d = vt ─────────────────────────────────────────────────────────────────
   "d-vt": {
-    easy: [
-      { id: "dvt-e1", stem: "An object travels at 5 ms⁻¹ for 10 s. Calculate the distance.", equation: "d = vt", options: ["2 m", "15 m", "50 m", "0.5 m"], correctOption: 2, markScheme: "d = v × t = 5 × 10 = 50 m" },
-      { id: "dvt-e2", stem: "A car travels 120 m in 6 s. Calculate its average speed.", equation: "d = vt  →  v = d ÷ t", options: ["720 ms⁻¹", "20 ms⁻¹", "114 ms⁻¹", "126 ms⁻¹"], correctOption: 1, markScheme: "v = d ÷ t = 120 ÷ 6 = 20 ms⁻¹" },
-      { id: "dvt-e3", stem: "A cyclist travels at 8 ms⁻¹ and covers 56 m. Calculate the time taken.", equation: "d = vt  →  t = d ÷ v", options: ["448 s", "7 s", "64 s", "48 s"], correctOption: 1, markScheme: "t = d ÷ v = 56 ÷ 8 = 7 s" },
-      { id: "dvt-e4", stem: "A train travels at 25 ms⁻¹ for 4 s. Calculate the distance.", equation: "d = vt", options: ["6.25 m", "29 m", "21 m", "100 m"], correctOption: 3, markScheme: "d = 25 × 4 = 100 m" },
-    ],
-    medium: [
-      { id: "dvt-m1", stem: "A car travels at 30 ms⁻¹ for 25 s. Calculate the distance.", equation: "d = vt", correctAnswer: "750 m", markScheme: "d = 30 × 25 = 750 m" },
-      { id: "dvt-m2", stem: "A signal travels 1.5 × 10⁸ m in 0.5 s. Calculate its speed.", equation: "d = vt  →  v = d ÷ t", correctAnswer: "3.0 × 10⁸ ms⁻¹", markScheme: "v = 1.5×10⁸ ÷ 0.5 = 3.0×10⁸ ms⁻¹" },
-      { id: "dvt-m3", stem: "Sound travels at 340 ms⁻¹. How long does it take to travel 1.02 km?", equation: "d = vt  →  t = d ÷ v", correctAnswer: "3.0 s", markScheme: "d = 1 020 m;  t = 1 020 ÷ 340 = 3.0 s" },
-    ],
-    hard: [
-      { id: "dvt-h1", stem: "A car travels at 72 km/h for 15 minutes. Calculate the distance in metres.", equation: "d = vt", correctAnswer: "18 000 m", markScheme: "v = 72 km/h = 20 ms⁻¹;  t = 15 × 60 = 900 s;  d = 20 × 900 = 18 000 m" },
-      { id: "dvt-h2", stem: "A train covers 4.5 km in 90 s. Calculate its speed in ms⁻¹.", equation: "d = vt  →  v = d ÷ t", correctAnswer: "50 ms⁻¹", markScheme: "d = 4 500 m;  v = 4 500 ÷ 90 = 50 ms⁻¹" },
-      { id: "dvt-h3", stem: "A probe travels at 1.5 × 10⁴ ms⁻¹ for 2.0 hours. Calculate the distance in km.", equation: "d = vt", correctAnswer: "1.08 × 10⁵ km", markScheme: "t = 2.0 × 3 600 = 7 200 s;  d = 1.5×10⁴ × 7 200 = 1.08×10⁸ m = 1.08×10⁵ km" },
-    ],
+    easy: DVT_EASY,
+    medium: DVT_MEDIUM,
+    hard: DVT_HARD,
   },
 
   // ── Ek = ½mv² ──────────────────────────────────────────────────────────────
