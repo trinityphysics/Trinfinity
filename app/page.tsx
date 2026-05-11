@@ -572,7 +572,7 @@ function loadCurrentUser(): UserAccount | null {
 function saveCurrentUser(user: UserAccount | null): void {
   if (typeof window === "undefined") return
   if (user) {
-    const sessionUser = user.password ? { ...user, password: undefined } : user
+    const sessionUser: UserAccount = { ...user, password: undefined }
     localStorage.setItem("trinfinity_current_user", JSON.stringify(sessionUser))
   }
   else localStorage.removeItem("trinfinity_current_user")
@@ -6434,7 +6434,7 @@ function AuthModal({
       }
 
       if (supabase && isSupabaseConfigured()) {
-        const { data, error: supabaseError } = await supabase.auth.signInWithPassword({
+        const { error: supabaseError } = await supabase.auth.signInWithPassword({
           email: normalizedEmail,
           password,
         })
@@ -6452,17 +6452,11 @@ function AuthModal({
           return
         }
 
-        const metadata = (data.user?.user_metadata ?? {}) as {
-          name?: string
-          accountType?: AccountType
-          subjectLevels?: Partial<Record<SubjectId, string>>
-        }
         const persistedAccount = found ?? {
-          id: data.user?.id ?? generateId(),
-          name: typeof metadata.name === "string" && metadata.name.trim() ? metadata.name.trim() : normalizedEmail.split("@")[0],
+          id: generateId(),
+          name: normalizedEmail.split("@")[0],
           email: normalizedEmail,
-          accountType: metadata.accountType === "teacher" ? "teacher" : "pupil",
-          subjectLevels: metadata.subjectLevels,
+          accountType: "pupil" as const,
         }
         if (!found) {
           saveAccounts([...accounts, persistedAccount])
@@ -6516,7 +6510,7 @@ function AuthModal({
       return
     }
 
-    const { data, error: supabaseError } = await supabase.auth.signUp({
+    const { error: supabaseError } = await supabase.auth.signUp({
       email: finalUser.email,
       password: plainPassword,
       options: {
@@ -6535,7 +6529,6 @@ function AuthModal({
 
     const newUser: UserAccount = {
       ...finalUser,
-      id: data.user?.id ?? finalUser.id,
     }
     const accounts = loadAccounts()
     if (!accounts.some((a) => a.email.toLowerCase() === newUser.email.toLowerCase())) {
