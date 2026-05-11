@@ -1,0 +1,305 @@
+To complete your high-quality physics problem bank, here is the full set of **100 Hard Tier questions**.
+
+As per the specifications, these questions focus on multi-step problem solving, scientific notation, complex prefixes (micro, nano, Mega, Giga), and advanced algebraic manipulation of the $d=vt$ relationship.
+
+### [Batch 3: Hard Tier (Questions 1 - 100)]
+
+**Q1.** A radio signal ($v = 3 \times 10^{8}\text{ m/s}$) is sent from Earth to a rover on Mars when the planets are $2.25 \times 10^{8}\text{ km}$ apart. Calculate the time taken for the signal to reach the rover in seconds.
+*Answer:* $750\text{ s}$ (or $7.5 \times 10^{2}\text{ s}$)
+
+**Q2.** An ultrasound pulse travels through human tissue at $1540\text{ m/s}$. It is reflected off an organ and returns to the transducer in $40\text{ }\mu\text{s}$. Calculate the distance to the organ in millimeters.
+*Answer:* $30.8\text{ mm}$
+
+**Q3.** A high-speed train travels at a constant speed of $288\text{ km/h}$. Calculate the distance it covers in $12.5\text{ minutes}$ in SI units.
+*Answer:* $60,000\text{ m}$
+
+**Q4.** A satellite in circular orbit travels at $7.5\text{ km/s}$. Calculate the time it takes to complete one full orbit of $42,000\text{ km}$ in minutes.
+*Answer:* $93.3\text{ minutes}$
+
+**Q5.** A tectonic plate moves at a speed of $2.5\text{ cm/year}$. Calculate the time in seconds it takes for the plate to move a distance of $1\text{ meter}$ (1 year = $3.15 \times 10^{7}\text{ s}$).
+*Answer:* $1.26 \times 10^{9}\text{ s}$
+
+**Q6.** A fiber optic signal travels at $2.0 \times 10^{8}\text{ m/s}$. The cable is $450\text{ km}$ long. Calculate the delay (time) in milliseconds.
+*Answer:* $2.25\text{ ms}$
+
+**Q7.** A car travels at an average speed of $25\text{ m/s}$. Calculate the time taken to travel a distance of $2.4\text{ km}$ in minutes.
+*Answer:* $1.6\text{ minutes}$
+
+**Q8.** A honeybee flies at $5.4\text{ m/s}$ for $1.2\text{ km}$. If it flaps its wings 230 times per second, how many wing flaps does it perform during this journey?
+*Answer:* $51,111\text{ flaps}$
+
+**Q9.** Light from the Sun takes $8\text{ minutes and 20 seconds}$ to reach Earth. If the speed of light is $3.0 \times 10^{8}\text{ m/s}$, calculate the Sun-Earth distance in Gigameters (Gm).
+*Answer:* $150\text{ Gm}$
+
+**Q10.** A submarine emits a sonar pulse ($v=1500\text{ m/s}$) to the seabed and back in $0.6\text{ s}$. The submarine is moving horizontally at $4\text{ m/s}$. Calculate the horizontal distance the submarine travels while the pulse is in the water.
+*Answer:* $2.4\text{ m}$
+
+**Q11.** An electron travels at $2.2 \times 10^{6}\text{ m/s}$ in a vacuum. Calculate the distance it travels in $15\text{ nanoseconds}$.
+*Answer:* $0.033\text{ m}$
+
+**Q12.** A jet flying at Mach 2.2 ($1\text{ Mach} = 340\text{ m/s}$) travels between two cities in $45\text{ minutes}$. Calculate the distance in kilometers.
+*Answer:* $2019.6\text{ km}$
+
+**Q13.** A sprinter runs at $10\text{ m/s}$ for the first $20\text{ m}$ and $12\text{ m/s}$ for the remaining $80\text{ m}$. Calculate the average speed for the full $100\text{ m}$.
+*Answer:* $11.5\text{ m/s}$
+
+**Q14.** A computer processor performs an operation in $0.4\text{ ns}$. If an electrical signal travels at $2.5 \times 10^{8}\text{ m/s}$ through the circuitry, how far does it travel during one operation?
+*Answer:* $0.1\text{ m}$
+
+**Q15.** A space probe is $1.2 \times 10^{12}\text{ m}$ from Earth. Calculate the time in hours for a radio signal ($v=c$) to travel to the probe and back.
+*Answer:* $2.22\text{ hours}$
+
+**Q16.** A cyclist maintains a speed of $18\text{ km/h}$ for $40\text{ minutes}$, then $24\text{ km/h}$ for $20\text{ minutes}$. Calculate the total distance traveled in meters.
+*Answer:* $20,000\text{ m}$
+
+**Q17.** A wave with a frequency of $50\text{ Hz}$ has a wavelength of $20\text{ cm}$. Calculate the time it takes for this wave to travel $1.5\text{ km}$.
+*Answer:* $150\text{ s}$
+
+**Q18.** A muon lives for $2.2\text{ }\mu\text{s}$ before decaying. If it travels at $2.97 \times 10^{8}\text{ m/s}$, how far does it travel before decaying?
+*Answer:* $653.4\text{ m}$
+
+**Q19.** A race car completes a $5\text{ km}$ lap in $100\text{ s}$. On the second lap, its average speed drops by $15\text{ m/s}$. Calculate the time for the second lap.
+*Answer:* $142.9\text{ s}$
+
+**Q20.** A laser rangefinder measures the distance to a moon. The beam returns in $2.56\text{ s}$. Calculate the distance to the moon in Megameters (Mm).
+*Answer:* $384\text{ Mm}$
+
+**Q21.** A bullet is fired at $420\text{ m/s}$ at a target $150\text{ m}$ away. The sound of impact reaches the shooter $0.8\text{ s}$ after firing. Calculate the speed of sound.
+*Answer:* $338.7\text{ m/s}$
+
+**Q22.** A person $680\text{ m}$ from a cliff hears an echo. They move $100\text{ m}$ closer. Calculate the reduction in echo time ($v_{sound} = 340\text{ m/s}$).
+*Answer:* $0.59\text{ s}$
+
+**Q23.** An athlete runs at $5\text{ m/s}$ for $t$ seconds, covering $200\text{ m}$. They then run at $8\text{ m/s}$ for the same time $t$. Calculate the total distance.
+*Answer:* $520\text{ m}$
+
+**Q24.** A sonar pulse takes $4\text{ s}$ to return from the seabed ($v=1500\text{ m/s}$). If a pulse is sent every $2\text{ s}$, how many pulses are in the water at any one time?
+*Answer:* 2 pulses
+
+**Q25.** A car travels $100\text{ km}$ at $50\text{ km/h}$ and $100\text{ km}$ at $100\text{ km/h}$. Calculate average speed in m/s.
+*Answer:* $18.5\text{ m/s}$
+
+**Q26.** A particle travels at $2.5 \times 10^{4}\text{ m/s}$. Calculate the time in microseconds to travel $12.5\text{ cm}$.
+*Answer:* $5\text{ }\mu\text{s}$
+
+**Q27.** A satellite travels at $28,000\text{ km/h}$. Calculate the distance it travels in $1\text{ millisecond}$ in meters.
+*Answer:* $7.78\text{ m}$
+
+**Q28.** A marathon runner maintains a pace of $4\text{ minutes per kilometer}$. Calculate their speed in m/s.
+*Answer:* $4.17\text{ m/s}$
+
+**Q29.** A storm is $10.2\text{ km}$ away. Calculate the time delay between lightning and thunder ($v_{sound} = 340\text{ m/s}$).
+*Answer:* $30\text{ s}$
+
+**Q30.** A neutron star with a diameter of $20\text{ km}$ rotates once every $0.03\text{ s}$. Calculate the speed of its equator.
+*Answer:* $2.09 \times 10^{6}\text{ m/s}$
+
+**Q31.** An F1 car at $90\text{ m/s}$ sees a hazard. The driver reacts in $0.2\text{ s}$. How far does the car travel in this time?
+*Answer:* $18\text{ m}$
+
+**Q32.** Star A and B are $4.5 \times 10^{12}\text{ m}$ apart. How long does it take light to travel between them in hours?
+*Answer:* $4.17\text{ hours}$
+
+**Q33.** A $200\text{ m}$ train travels at $30\text{ m/s}$ through a $1.5\text{ km}$ tunnel. Calculate the time for the whole train to pass through.
+*Answer:* $56.7\text{ s}$
+
+**Q34.** Packages are placed on a belt every $5\text{ s}$. If the belt moves at $0.15\text{ m/s}$, find the distance between packages.
+*Answer:* $0.75\text{ m}$
+
+**Q35.** A blood cell travels at $0.1\text{ mm/s}$ through a $1\text{ cm}$ capillary. Calculate the time in minutes.
+*Answer:* $1.67\text{ minutes}$
+
+**Q36.** A pulsar emits a pulse every $1.33\text{ s}$. Calculate the distance between these pulses in space.
+*Answer:* $3.99 \times 10^{8}\text{ m}$
+
+**Q37.** Car A ($30\text{ m/s}$) is $100\text{ m}$ behind Truck B ($25\text{ m/s}$). How long until they meet?
+*Answer:* $20\text{ s}$
+
+**Q38.** Calculate the distance of one light-year in meters ($1\text{ year} = 3.15 \times 10^{7}\text{ s}$).
+*Answer:* $9.45 \times 10^{15}\text{ m}$
+
+**Q39.** An alpha particle ($1.5 \times 10^{7}\text{ m/s}$) passes through $0.0001\text{ mm}$ of gold foil. Find the time spent in the foil.
+*Answer:* $6.67 \times 10^{-15}\text{ s}$
+
+**Q40.** A swimmer ($1.2\text{ m/s}$) crosses a $50\text{ m}$ wide river with a $0.5\text{ m/s}$ current. Calculate the time to cross.
+*Answer:* $41.7\text{ s}$
+
+**Q41.** A plane flies $1200\text{ km}$ with a $50\text{ km/h}$ tailwind in $2\text{ hours}$. Calculate the plane's airspeed.
+*Answer:* $152.8\text{ m/s}$ (or $550\text{ km/h}$)
+
+**Q42.** A cyclist travels $20\text{ miles}$ in $1.5\text{ hours}$. Calculate speed in m/s ($1\text{ mile} = 1609\text{ m}$).
+*Answer:* $5.96\text{ m/s}$
+
+**Q43.** An object falls into a well. The splash is heard $3.5\text{ s}$ later. If sound took $0.2\text{ s}$ to return, find the depth.
+*Answer:* $68\text{ m}$
+
+**Q44.** A signal from a geostationary satellite takes $0.12\text{ s}$ to reach Earth. Calculate the altitude.
+*Answer:* $3.6 \times 10^{7}\text{ m}$
+
+**Q45.** A motor rotates at $3000\text{ rpm}$. The rim travels $1.5\text{ m}$ per revolution. Calculate the rim speed in m/s.
+*Answer:* $75\text{ m/s}$
+
+**Q46.** A laser pulse duration is $10\text{ fs}$. Calculate the physical length of the pulse.
+*Answer:* $3 \times 10^{-6}\text{ m}$
+
+**Q47.** A runner with a $1.2\text{ m}$ stride takes $160\text{ steps/min}$. Calculate their speed.
+*Answer:* $3.2\text{ m/s}$
+
+**Q48.** A tsunami ($800\text{ km/h}$) travels $4000\text{ km}$. How long does it take in hours?
+*Answer:* $5\text{ hours}$
+
+**Q49.** A bullet ($900\text{ m/s}$) travels $1.8\text{ km}$, spinning once every $25\text{ cm}$. Find total rotations.
+*Answer:* $7200\text{ rotations}$
+
+**Q50.** A $1.5\text{ MB}$ file is sent at $100\text{ Mbps}$. Calculate the time taken ($1\text{ Byte} = 8\text{ bits}$).
+*Answer:* $0.12\text{ s}$
+
+**Q51.** A spacecraft travels at $11\text{ km/s}$. How many days does it take to travel $1\text{ AU}$ ($1.5 \times 10^{11}\text{ m}$)?
+*Answer:* $157.7\text{ days}$
+
+**Q52.** A camera shutter is open for $1/4000\text{ s}$. How far does a car at $32\text{ m/s}$ move during the exposure?
+*Answer:* $0.008\text{ m}$
+
+**Q53.** A wave travels $2\text{ km}$ at $400\text{ m/s}$. Calculate the time in milliseconds.
+*Answer:* $5000\text{ ms}$
+
+**Q54.** Light travels through glass ($v = 2 \times 10^{8}\text{ m/s}$). How long to travel $5\text{ cm}$ in picoseconds?
+*Answer:* $250\text{ ps}$
+
+**Q55.** A piston moves $10\text{ cm}$ up and down 50 times per second. Calculate its average speed.
+*Answer:* $10\text{ m/s}$
+
+**Q56.** A laser beam hits the moon and returns in $2.56\text{ s}$. Calculate the distance in km.
+*Answer:* $384,000\text{ km}$
+
+**Q57.** A signal travels $300\text{ km}$ at $0.7c$. Calculate the time taken in milliseconds.
+*Answer:* $1.43\text{ ms}$
+
+**Q58.** A bird flies $500\text{ m}$ at $12\text{ m/s}$ with a $3\text{ m/s}$ headwind. Calculate the time.
+*Answer:* $55.6\text{ s}$
+
+**Q59.** An object travels $d$ meters at $10\text{ m/s}$ and $d$ meters at $20\text{ m/s}$. Find average speed.
+*Answer:* $13.3\text{ m/s}$
+
+**Q60.** A wheel of radius $0.4\text{ m}$ rolls at $5\text{ rad/s}$. Calculate the linear speed.
+*Answer:* $2\text{ m/s}$
+
+**Q61.** A data packet travels $5000\text{ km}$ at $2 \times 10^{8}\text{ m/s}$. Calculate latency in ms.
+*Answer:* $25\text{ ms}$
+
+**Q62.** A car travels $60\text{ km}$ in $45\text{ minutes}$. Calculate speed in m/s.
+*Answer:* $22.2\text{ m/s}$
+
+**Q63.** A sound wave ($340\text{ m/s}$) has a period of $2\text{ ms}$. Calculate the distance it travels in one period.
+*Answer:* $0.68\text{ m}$
+
+**Q64.** A particle covers $1\text{ }\mu\text{m}$ in $1\text{ ns}$. Calculate its speed.
+*Answer:* $1000\text{ m/s}$
+
+**Q65.** A drone flies $2\text{ km}$ at $15\text{ m/s}$ and returns at $10\text{ m/s}$. Find average speed.
+*Answer:* $12\text{ m/s}$
+
+**Q66.** A ship travels $200\text{ nautical miles}$ in $10\text{ hours}$. Calculate speed in m/s ($1\text{ nmi} = 1852\text{ m}$).
+*Answer:* $10.3\text{ m/s}$
+
+**Q67.** Light travels $1\text{ foot}$ ($0.3048\text{ m}$). How long does it take in nanoseconds?
+*Answer:* $1.02\text{ ns}$
+
+**Q68.** A conveyer travels $30\text{ m}$. It takes $2\text{ minutes}$. Calculate speed in cm/s.
+*Answer:* $25\text{ cm/s}$
+
+**Q69.** A planet orbits at $30\text{ km/s}$. How far does it move in $1\text{ hour}$ in Megameters?
+*Answer:* $108\text{ Mm}$
+
+**Q70.** A sound pulse returns from a wall $50\text{ m}$ away. Calculate the time delay.
+*Answer:* $0.29\text{ s}$
+
+**Q71.** A car at $20\text{ m/s}$ passes a $50\text{ m}$ long bridge. How long is any part of the car on the bridge?
+*Answer:* $2.5\text{ s}$
+
+**Q72.** A satellite completes 15 orbits a day. Calculate its speed if the orbit is $42,000\text{ km}$.
+*Answer:* $7291.7\text{ m/s}$
+
+**Q73.** A computer signal travels $20\text{ cm}$ at $c$. Calculate time in picoseconds.
+*Answer:* $667\text{ ps}$
+
+**Q74.** A jogger runs $5\text{ km}$ in $25\text{ mins}$ and $3\text{ km}$ in $20\text{ mins}$. Find average speed.
+*Answer:* $2.96\text{ m/s}$
+
+**Q75.** A wave travels $10\text{ m}$ in $2\text{ s}$. Calculate distance covered in $1\text{ minute}$.
+*Answer:* $300\text{ m}$
+
+**Q76.** A bullet ($800\text{ m/s}$) hits a target $400\text{ m}$ away. Calculate the time in ms.
+*Answer:* $500\text{ ms}$
+
+**Q77.** A car travels at $72\text{ km/h}$. How many meters does it cover in $1\text{ second}$?
+*Answer:* $20\text{ m}$
+
+**Q78.** A signal travels $1000\text{ km}$ at $0.6c$. Calculate the time.
+*Answer:* $5.56\text{ ms}$
+
+**Q79.** A person walks $100\text{ m}$ at $1.5\text{ m/s}$ and runs $100\text{ m}$ at $4\text{ m/s}$. Find average speed.
+*Answer:* $2.18\text{ m/s}$
+
+**Q80.** A moon of Jupiter orbits at $17\text{ km/s}$. Calculate the distance in $1\text{ day}$.
+*Answer:* $1.47 \times 10^{9}\text{ m}$
+
+**Q81.** A swimmer crosses a $25\text{ m}$ pool in $20\text{ s}$. Calculate speed in km/h.
+*Answer:* $4.5\text{ km/h}$
+
+**Q82.** An echo returns in $1.2\text{ s}$. How far is the cliff?
+*Answer:* $204\text{ m}$
+
+**Q83.** A jet flies at $1200\text{ km/h}$. How far in $45\text{ seconds}$?
+*Answer:* $15,000\text{ m}$
+
+**Q84.** Light travels from the Moon ($3.8 \times 10^{8}\text{ m}$). Calculate the time in seconds.
+*Answer:* $1.27\text{ s}$
+
+**Q85.** A car travels $10\text{ m}$ in the first second and $20\text{ m}$ in the next. Find average speed.
+*Answer:* $15\text{ m/s}$
+
+**Q86.** A wave has $\lambda = 5\text{ m}$ and $f = 10\text{ Hz}$. How long to travel $1\text{ km}$?
+*Answer:* $20\text{ s}$
+
+**Q87.** A rocket travels $8\text{ km/s}$. How long to reach $380,000\text{ km}$ in hours?
+*Answer:* $13.2\text{ hours}$
+
+**Q88.** A cyclist at $8\text{ m/s}$ is overtaken by a car at $20\text{ m/s}$. Find relative speed.
+*Answer:* $12\text{ m/s}$
+
+**Q89.** A signal travels at $2.5 \times 10^{8}\text{ m/s}$. How far in $1\text{ }\mu\text{s}$?
+*Answer:* $250\text{ m}$
+
+**Q90.** A car covers $400\text{ m}$ at $20\text{ m/s}$. How long would it take at $25\text{ m/s}$?
+*Answer:* $16\text{ s}$
+
+**Q91.** A belt moves $2\text{ m}$ every $5\text{ s}$. Calculate speed in m/s.
+*Answer:* $0.4\text{ m/s}$
+
+**Q92.** A skater travels $100\text{ m}$ at $8\text{ m/s}$. How far in the same time at $10\text{ m/s}$?
+*Answer:* $125\text{ m}$
+
+**Q93.** A sound wave travels $1\text{ km}$ in $3\text{ s}$. Calculate the speed.
+*Answer:* $333.3\text{ m/s}$
+
+**Q94.** A laser pulse travels $300\text{ m}$. Calculate time in microseconds.
+*Answer:* $1\text{ }\mu\text{s}$
+
+**Q95.** A car at $15\text{ m/s}$ travels for $10\text{ minutes}$. Calculate distance in km.
+*Answer:* $9\text{ km}$
+
+**Q96.** A train travels $150\text{ km}$ in $1.5\text{ hours}$. Calculate speed in m/s.
+*Answer:* $27.8\text{ m/s}$
+
+**Q97.** A signal travels $1\text{ light-second}$. How far is that in km?
+*Answer:* $300,000\text{ km}$
+
+**Q98.** A boat travels $12\text{ m/s}$ for $2\text{ minutes}$. Find the distance.
+*Answer:* $1440\text{ m}$
+
+**Q99.** A pulse returns in $0.4\text{ s}$ ($v=1500\text{ m/s}$). Find the distance.
+*Answer:* $300\text{ m}$
+
+**Q100.** A runner travels $1\text{ km}$ in $4\text{ minutes}$. Calculate speed in m/s.
+*Answer:* $4.17\text{ m/s}$
