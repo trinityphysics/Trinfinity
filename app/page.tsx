@@ -569,10 +569,24 @@ function loadCurrentUser(): UserAccount | null {
   }
 }
 
+function toSessionUser(user: UserAccount): UserAccount {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    accountType: user.accountType,
+    isTestAccount: user.isTestAccount,
+    subjectLevels: user.subjectLevels,
+    lastLogin: user.lastLogin,
+    totalSessions: user.totalSessions,
+    disableModeLocking: user.disableModeLocking,
+  }
+}
+
 function saveCurrentUser(user: UserAccount | null): void {
   if (typeof window === "undefined") return
   if (user) {
-    const sessionUser: UserAccount = { ...user, password: undefined }
+    const sessionUser = toSessionUser(user)
     localStorage.setItem("trinfinity_current_user", JSON.stringify(sessionUser))
   }
   else localStorage.removeItem("trinfinity_current_user")
