@@ -270,7 +270,7 @@ export const DVT_EASY: CalcQuestion[] = [
   },
   {
     id: "dvt-e32",
-    stem: "A signal travels through an optical fiber at 2×10 8 m/s. How far does it travel in 0.001 s?",
+    stem: "A signal travels through an optical fiber at $2 \\times 10^{8}$ m/s. How far does it travel in 0.001 s?",
     equation: "d = vt",
     options: ["200,000 m", "2,000 m", "20,000 m", "2,000,000 m"],
     correctOption: 0,
@@ -318,7 +318,7 @@ export const DVT_EASY: CalcQuestion[] = [
   },
   {
     id: "dvt-e38",
-    stem: "A radio wave travels at 3×10 8 m/s. How far does it travel in 1 ms (millisecond)?",
+    stem: "A radio wave travels at $3 \\times 10^{8}$ m/s. How far does it travel in 1 ms (millisecond)?",
     equation: "d = vt",
     options: ["300,000 m", "3,000 m", "30,000,000 m", "300 m"],
     correctOption: 0,
@@ -430,11 +430,11 @@ export const DVT_EASY: CalcQuestion[] = [
   },
   {
     id: "dvt-e52",
-    stem: "A laser beam travels 600 meters. How long does it take? (v=3×10 8 m/s)",
+    stem: "A laser beam travels 600 meters. How long does it take? (v=$3 \\times 10^{8}$ m/s)",
     equation: "d = vt",
-    options: ["2×10 −6 s", "1.8×10 11 s", "5×10 5 s", "2×10 6 s"],
+    options: ["$2 \\times 10^{-6}$ s", "$1.8 \\times 10^{11}$ s", "$5 \\times 10^{5}$ s", "$2 \\times 10^{6}$ s"],
     correctOption: 0,
-    markScheme: "Correct answer: 2×10 −6 s",
+    markScheme: "Correct answer: 2×10^−6 s",
   },
   {
     id: "dvt-e53",
@@ -574,7 +574,7 @@ export const DVT_EASY: CalcQuestion[] = [
   },
   {
     id: "dvt-e70",
-    stem: "A light signal travels 900,000 km. How long does it take? (v=3×10 8 m/s)",
+    stem: "A light signal travels 900,000 km. How long does it take? (v=3×10^8 m/s)",
     equation: "d = vt",
     options: ["3 s", "300 s", "0.003 s", "2.7 s"],
     correctOption: 0,
@@ -606,7 +606,7 @@ export const DVT_EASY: CalcQuestion[] = [
   },
   {
     id: "dvt-e74",
-    stem: "A athlete runs at 8 m/s. How far do they run in 12 seconds?",
+    stem: "An athlete runs at 8 m/s. How far do they run in 12 seconds?",
     equation: "d = vt",
     options: ["1.5 m", "96 m", "0.66 m", "20 m"],
     correctOption: 1,
@@ -638,7 +638,7 @@ export const DVT_EASY: CalcQuestion[] = [
   },
   {
     id: "dvt-e78",
-    stem: "A remote control signal travels at 3×10 8 m/s. How far does it go in 0.000001 s?",
+    stem: "A remote control signal travels at 3×10^8 m/s. How far does it go in 0.000001 s?",
     equation: "d = vt",
     options: ["300 m", "30 m", "3000 m", "3 m"],
     correctOption: 0,
@@ -734,11 +734,11 @@ export const DVT_EASY: CalcQuestion[] = [
   },
   {
     id: "dvt-e90",
-    stem: "A pulse of light travels 1500 m. How long does it take? (v=3×10 8 m/s)",
+    stem: "A pulse of light travels 1500 m. How long does it take? (v=$3 \\times 10^{8}$ m/s)",
     equation: "d = vt",
-    options: ["5×10 −6 s", "4.5×10 11 s", "2×10 5 s", "5×10 −5 s"],
+    options: ["$5 \\times 10^{-6}$ s", "$4.5 \\times 10^{11}$ s", "$2 \\times 10^{5}$ s", "$5 \\times 10^{-5}$ s"],
     correctOption: 0,
-    markScheme: "Correct answer: 5×10 −6 s",
+    markScheme: "Correct answer: $5 \\times 10^{-6}$ s",
   },
   {
     id: "dvt-e91",
@@ -798,9 +798,9 @@ export const DVT_EASY: CalcQuestion[] = [
   },
   {
     id: "dvt-e98",
-    stem: "A radio wave travels from Earth to the Moon (3.8×10 8 m). How long does it take? (v=3×10 8 m/s)",
+    stem: "A radio wave travels from Earth to the Moon (3.8×10^8 m). How long does it take? (v=3×10^8 m/s)",
     equation: "d = vt",
-    options: ["1.14×10 17 s", "1.27 s", "0.79 s", "3.8 s"],
+    options: ["1.14×10^17 s", "1.27 s", "0.79 s", "3.8 s"],
     correctOption: 1,
     markScheme: "Correct answer: 1.27 s",
   },
@@ -1170,8 +1170,8 @@ export const DVT_MEDIUM: CalcQuestion[] = [
     id: "dvt-m50",
     stem: "A sprinter runs 100 meters at 10 m/s. Calculate the time taken.",
     equation: "d = vt",
-    correctAnswer: "10 s(Questions 51-100 follow this exact format: SI units (m, s, m/s) with numerical answers derived from $d=vt$, $v=d/t$, or $t=d/v$.)",
-    markScheme: "Correct answer: 10 s(Questions 51-100 follow this exact format: SI units (m, s, m/s) with numerical answers derived from $d=vt$, $v=d/t$, or $t=d/v$.)",
+    correctAnswer: "10 s",
+    markScheme: "Correct answer: 10 s",
   },
   {
     id: "dvt-m51",
@@ -1530,8 +1530,8 @@ export const DVT_HARD: CalcQuestion[] = [
     id: "dvt-h1",
     stem: "A radio signal ($v = 3 \\times 10^{8}\\text{ m/s}$) is sent from Earth to a rover on Mars when the planets are $2.25 \\times 10^{8}\\text{ km}$ apart. Calculate the time taken for the signal to reach the rover in seconds.",
     equation: "d = vt",
-    correctAnswer: "$750\\text{ s}$ (or $7.5 \\times 10^{2}\\text{ s}$)",
-    markScheme: "Correct answer: $750\\text{ s}$ (or $7.5 \\times 10^{2}\\text{ s}$)",
+    correctAnswer: "750 s (or 7.5 × 10² s)",
+    markScheme: "Correct answer: 750 s (or 7.5 × 10² s)",
   },
   {
     id: "dvt-h2",
