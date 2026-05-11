@@ -103,6 +103,7 @@ import {
   Sigma,
   PoundSterling,
 } from "lucide-react"
+import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase-client"
 
 // Trinity High School Maroon: #800000
 // Trinity High School Gold: #D4AF37
@@ -6375,6 +6376,7 @@ function AuthModal({
   // Level selection step (for pupils after signup)
   const [signupStep, setSignupStep] = useState<"details" | "levels">("details")
   const [pendingUser, setPendingUser] = useState<UserAccount | null>(null)
+  const [pendingPassword, setPendingPassword] = useState("")
   const LEVEL_OPTIONS = ["not sitting", "National 5", "Higher", "Advanced Higher"] as const
   const [subjectLevels, setSubjectLevels] = useState<Partial<Record<SubjectId, string>>>({})
 
@@ -6393,6 +6395,7 @@ function AuthModal({
       setSuccess("")
       setSignupStep("details")
       setPendingUser(null)
+      setPendingPassword("")
       setSubjectLevels({})
     }
   }, [isOpen])
@@ -6403,8 +6406,67 @@ function AuthModal({
     e.preventDefault()
     setError("")
     try {
+      const normalizedEmail = email.trim().toLowerCase()
       const accounts = loadAccounts()
-      const found = accounts.find((a) => a.email.toLowerCase() === email.toLowerCase())
+      const found = accounts.find((a) => a.email.toLowerCase() === normalizedEmail)
+      const supabase = getSupabaseBrowserClient()
+
+      if (found?.isTestAccount) {
+        if (!found.password) {
+          setError("This test account is missing a password.")
+          return
+        }
+        const valid = await verifyPassword(password, found.password)
+        if (!valid) {
+          setError("Incorrect password. Please try again.")
+          return
+        }
+        saveCurrentUser(found)
+        onSignIn(found)
+        onClose()
+        return
+      }
+
+      if (supabase && isSupabaseConfigured()) {
+        const { data, error: supabaseError } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        })
+        if (supabaseError) {
+          if (found?.password) {
+            const valid = await verifyPassword(password, found.password)
+            if (valid) {
+              saveCurrentUser(found)
+              onSignIn(found)
+              onClose()
+              return
+            }
+          }
+          setError("Incorrect email or password. Please try again.")
+          return
+        }
+
+        const metadata = (data.user?.user_metadata ?? {}) as {
+          name?: string
+          accountType?: AccountType
+          subjectLevels?: Partial<Record<SubjectId, string>>
+        }
+        const persistedAccount = found ?? {
+          id: data.user?.id ?? generateId(),
+          name: typeof metadata.name === "string" && metadata.name.trim() ? metadata.name.trim() : normalizedEmail.split("@")[0],
+          email: normalizedEmail,
+          accountType: metadata.accountType === "teacher" ? "teacher" : "pupil",
+          subjectLevels: metadata.subjectLevels,
+        }
+        if (!found) {
+          saveAccounts([...accounts, persistedAccount])
+        }
+        saveCurrentUser(persistedAccount)
+        onSignIn(persistedAccount)
+        onClose()
+        return
+      }
+
       if (!found) {
         setError("No account found with that email. Please create an account first.")
         return
@@ -6422,6 +6484,63 @@ function AuthModal({
     } catch {
       setError("An error occurred during sign in. Please try again.")
     }
+  }
+
+  async function completeSupabaseSignUp(draftUser: UserAccount, plainPassword: string, levels?: Partial<Record<SubjectId, string>>) {
+    const supabase = getSupabaseBrowserClient()
+    const finalUser: UserAccount = {
+      ...draftUser,
+      email: draftUser.email.trim().toLowerCase(),
+      ...(levels ? { subjectLevels: levels } : {}),
+    }
+
+    if (!supabase || !isSupabaseConfigured()) {
+      const hashedPassword = await hashPassword(plainPassword)
+      const localUser: UserAccount = { ...finalUser, password: hashedPassword }
+      const existingAccounts = loadAccounts()
+      if (!existingAccounts.some((a) => a.email.toLowerCase() === localUser.email.toLowerCase())) {
+        saveAccounts([...existingAccounts, localUser])
+      }
+      saveCurrentUser(localUser)
+      setSuccess("Account created!")
+      setTimeout(() => {
+        onSignIn(localUser, true)
+        onClose()
+      }, 800)
+      return
+    }
+
+    const { data, error: supabaseError } = await supabase.auth.signUp({
+      email: finalUser.email,
+      password: plainPassword,
+      options: {
+        data: {
+          name: finalUser.name,
+          accountType: finalUser.accountType,
+          subjectLevels: finalUser.subjectLevels,
+        },
+      },
+    })
+
+    if (supabaseError) {
+      setError(supabaseError.message || "An error occurred during account creation. Please try again.")
+      return
+    }
+
+    const newUser: UserAccount = {
+      ...finalUser,
+      id: data.user?.id ?? finalUser.id,
+    }
+    const accounts = loadAccounts()
+    if (!accounts.some((a) => a.email.toLowerCase() === newUser.email.toLowerCase())) {
+      saveAccounts([...accounts, newUser])
+    }
+    saveCurrentUser(newUser)
+    setSuccess("Account created!")
+    setTimeout(() => {
+      onSignIn(newUser, true)
+      onClose()
+    }, 800)
   }
 
   async function handleSignUp(e: React.FormEvent) {
@@ -6453,44 +6572,29 @@ function AuthModal({
       return
     }
     try {
-      const hashedPassword = await hashPassword(password)
-      const newUser: UserAccount = {
+      const draftUser: UserAccount = {
         id: generateId(),
         name: name.trim(),
         email: email.trim().toLowerCase(),
         accountType,
-        password: hashedPassword,
       }
       if (accountType === "pupil") {
         // For pupils: go to level selection step before finalising
-        setPendingUser(newUser)
+        setPendingUser(draftUser)
+        setPendingPassword(password)
         setSignupStep("levels")
       } else {
         // Teachers: create account immediately
-        saveAccounts([...accounts, newUser])
-        saveCurrentUser(newUser)
-        setSuccess("Account created!")
-        setTimeout(() => {
-          onSignIn(newUser, true)
-          onClose()
-        }, 800)
+        await completeSupabaseSignUp(draftUser, password)
       }
     } catch {
       setError("An error occurred during account creation. Please try again.")
     }
   }
 
-  function handleLevelSelectionDone() {
-    if (!pendingUser) return
-    const finalUser: UserAccount = { ...pendingUser, subjectLevels }
-    const accounts = loadAccounts()
-    saveAccounts([...accounts, finalUser])
-    saveCurrentUser(finalUser)
-    setSuccess("Account created!")
-    setTimeout(() => {
-      onSignIn(finalUser, true)
-      onClose()
-    }, 800)
+  async function handleLevelSelectionDone() {
+    if (!pendingUser || !pendingPassword) return
+    await completeSupabaseSignUp(pendingUser, pendingPassword, subjectLevels)
   }
 
   // ── Level Selection Step (pupils only) ──────────────────────────────────
@@ -14064,6 +14168,10 @@ export default function App() {
   }
 
   function handleSignOut() {
+    const supabase = getSupabaseBrowserClient()
+    if (supabase) {
+      void supabase.auth.signOut()
+    }
     saveCurrentUser(null)
     setCurrentUser(null)
   }

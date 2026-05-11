@@ -10,6 +10,15 @@ This repository is linked to a [v0](https://v0.app) project. You can continue de
 
 ## Getting Started
 
+Create a `.env.local` file with Supabase keys if you want cloud auth:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+If these are not set, the app falls back to local account storage.
+
 First, run the development server:
 
 ```bash
