@@ -14,7 +14,9 @@ Create a `.env.local` file with Supabase keys if you want cloud auth:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
+# Optional backward-compatible fallback:
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 If these are not set, the app falls back to local account storage.
