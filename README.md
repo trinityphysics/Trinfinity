@@ -13,8 +13,8 @@ This repository is linked to a [v0](https://v0.app) project. You can continue de
 Create a `.env.local` file with Supabase keys if you want cloud auth:
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
+NEXT_PUBLIC_SUPABASE_URL=https://rzmsaggimcrtthatmzce.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ6bXNhZ2dpbWNydHRoYXRtemNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MDYzMjksImV4cCI6MjA5NDA4MjMyOX0.3rejo3genh9coetUifD7J6EG41DTyLwuvXktVCEJTjM
 # Optional backward-compatible fallback:
 # NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
