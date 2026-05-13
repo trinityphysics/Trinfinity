@@ -21,6 +21,21 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3
 
 If these are not set, the app falls back to local account storage.
 
+## Supabase persistence expectations
+
+When Supabase is configured, the app uses Supabase Auth plus user-owned table data for persisted user progress/settings/custom content.
+
+Expected user-owned tables:
+
+- `profiles`
+- `user_settings`
+- `custom_questions`
+- `user_progress`
+- `quiz_attempts`
+- `saved_items`
+
+Keep shared/static question banks in the repository (`/data`) and do not move them into Supabase.
+
 First, run the development server:
 
 ```bash
