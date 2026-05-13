@@ -14582,6 +14582,7 @@ export default function App() {
     const supabase = getSupabaseBrowserClient()
     if (!supabase || !isSupabaseConfigured()) return
     let cancelled = false
+    let syncPromise: Promise<void> | null = null
 
     const syncAuthedUser = async () => {
       const { data, error } = await supabase.auth.getUser()
@@ -14627,7 +14628,19 @@ export default function App() {
       }
     }
 
-    void syncAuthedUser()
+    const runSyncAuthedUser = () => {
+      if (syncPromise) return syncPromise
+      syncPromise = syncAuthedUser()
+        .catch((err) => {
+          console.error("[Supabase Sync] Failed to sync authenticated user:", err)
+        })
+        .finally(() => {
+          syncPromise = null
+        })
+      return syncPromise
+    }
+
+    void runSyncAuthedUser()
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT" || !session?.user) {
@@ -14635,7 +14648,7 @@ export default function App() {
         setCurrentUser(null)
         return
       }
-      void syncAuthedUser()
+      void runSyncAuthedUser()
     })
 
     return () => {
