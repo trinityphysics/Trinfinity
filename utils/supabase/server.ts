@@ -8,7 +8,7 @@ export const createClient = (cookieStore: Awaited<ReturnType<typeof cookies>>) =
 
   if (!supabaseUrl || !supabasePublishableKey) {
     console.warn(
-      "Supabase server client unavailable: missing NEXT_PUBLIC_SUPABASE_URL and/or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY).",
+      "Supabase server client unavailable: missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/NEXT_PUBLIC_SUPABASE_ANON_KEY.",
     )
     return null
   }
