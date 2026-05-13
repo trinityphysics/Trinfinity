@@ -1,4 +1,4 @@
-create or replace function public.handle_new_auth_user()
+create or replace function public.sync_auth_user_profile()
 returns trigger
 language plpgsql
 security definer
@@ -25,10 +25,17 @@ end;
 $$;
 
 drop trigger if exists on_auth_user_created on auth.users;
+drop trigger if exists on_auth_user_updated on auth.users;
 
 create trigger on_auth_user_created
 after insert on auth.users
-for each row execute procedure public.handle_new_auth_user();
+for each row execute function public.sync_auth_user_profile();
+
+create trigger on_auth_user_updated
+after update of email, raw_user_meta_data on auth.users
+for each row
+when (old.email is distinct from new.email or old.raw_user_meta_data is distinct from new.raw_user_meta_data)
+execute function public.sync_auth_user_profile();
 
 insert into public.profiles (id, email, display_name)
 select
