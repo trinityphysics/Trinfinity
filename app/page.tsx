@@ -616,6 +616,364 @@ function saveClassGroups(groups: ClassGroup[]): void {
   localStorage.setItem("trinfinity_class_groups", JSON.stringify(userGroups))
 }
 
+const SUPABASE_USER_MIGRATION_MARKER_PREFIX = "trinfinity_supabase_user_migrated_"
+const USER_PROGRESS_MIGRATION_LEVELS = ["National 5", "Higher", "Advanced Higher"] as const
+const ASSIGNMENT_CUSTOM_QUESTION_STORAGE_KEYS = [
+  PHYSICS_ASSIGNMENT_CUSTOM_QUESTIONS_KEY,
+  BIOLOGY_ASSIGNMENT_CUSTOM_QUESTIONS_KEY,
+  CHEMISTRY_ASSIGNMENT_CUSTOM_QUESTIONS_KEY,
+] as const
+
+function parseStoredJSON<T>(raw: string | null, fallback: T): T {
+  if (!raw) return fallback
+  try {
+    return JSON.parse(raw) as T
+  } catch {
+    return fallback
+  }
+}
+
+function deriveSubjectFromCustomQuestionKey(storageKey: string): string {
+  if (storageKey === BIOLOGY_ASSIGNMENT_CUSTOM_QUESTIONS_KEY) return "Biology"
+  if (storageKey === CHEMISTRY_ASSIGNMENT_CUSTOM_QUESTIONS_KEY) return "Chemistry"
+  return "Physics"
+}
+
+async function getSupabaseAuthedUserId(): Promise<string | null> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase || !isSupabaseConfigured()) return null
+  const { data, error } = await supabase.auth.getUser()
+  if (error || !data.user) return null
+  return data.user.id
+}
+
+async function upsertSupabaseProfileAndSettings(user: UserAccount): Promise<void> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase || !isSupabaseConfigured() || user.isTestAccount) return
+  const authUserId = await getSupabaseAuthedUserId()
+  if (!authUserId || authUserId !== user.id) return
+
+  const profilePayloads = [
+    {
+      id: user.id,
+      email: user.email,
+      full_name: user.name,
+      account_type: user.accountType,
+      last_login: user.lastLogin ?? null,
+      total_sessions: user.totalSessions ?? 0,
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      account_type: user.accountType,
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: user.id,
+      email: user.email,
+    },
+  ]
+
+  for (const payload of profilePayloads) {
+    const { error } = await (supabase.from("profiles") as any).upsert(payload, { onConflict: "id" })
+    if (!error) break
+  }
+
+  const settingsPayloads = [
+    {
+      user_id: user.id,
+      subject_levels: user.subjectLevels ?? {},
+      disable_mode_locking: Boolean(user.disableModeLocking),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      user_id: user.id,
+      settings: {
+        subjectLevels: user.subjectLevels ?? {},
+        disableModeLocking: Boolean(user.disableModeLocking),
+      },
+      updated_at: new Date().toISOString(),
+    },
+    {
+      user_id: user.id,
+    },
+  ]
+
+  for (const payload of settingsPayloads) {
+    const { error } = await (supabase.from("user_settings") as any).upsert(payload, { onConflict: "user_id" })
+    if (!error) break
+  }
+}
+
+async function persistUserProgressKeyToSupabase(userId: string, key: string, value: unknown): Promise<void> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase || !isSupabaseConfigured()) return
+  const authUserId = await getSupabaseAuthedUserId()
+  if (!authUserId || authUserId !== userId) return
+
+  await supabase.from("user_progress").delete().eq("user_id", userId).eq("item_key", key)
+
+  const payloads = [
+    {
+      user_id: userId,
+      mode: "local_storage",
+      item_key: key,
+      progress_data: value,
+      updated_at: new Date().toISOString(),
+    },
+    {
+      user_id: userId,
+      key,
+      data: value,
+      updated_at: new Date().toISOString(),
+    },
+  ]
+
+  for (const payload of payloads) {
+    const { error } = await (supabase.from("user_progress") as any).insert(payload)
+    if (!error) break
+  }
+}
+
+async function persistQuizAttemptsToSupabase(userId: string, level: string, progress: ExamProgress): Promise<void> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase || !isSupabaseConfigured()) return
+  const authUserId = await getSupabaseAuthedUserId()
+  if (!authUserId || authUserId !== userId) return
+
+  await supabase.from("quiz_attempts").delete().eq("user_id", userId).eq("mode", `exam-paper-${level}`)
+  const attempts = Object.entries(progress.pastPapers ?? {}).flatMap(([paperId, paperAttempts]) =>
+    paperAttempts.map((attempt) => ({
+      user_id: userId,
+      mode: `exam-paper-${level}`,
+      topic: paperId,
+      score: attempt.marksTotal > 0 ? Math.round((attempt.marksEarned / attempt.marksTotal) * 100) : 0,
+      total_questions: attempt.marksTotal,
+      attempt_data: attempt,
+      created_at: new Date(attempt.date).toISOString(),
+    })),
+  )
+  if (attempts.length === 0) return
+
+  const fallbackAttempts = attempts.map((attempt) => ({
+    user_id: attempt.user_id,
+    item_key: attempt.topic,
+    attempt_data: attempt.attempt_data,
+    created_at: attempt.created_at,
+  }))
+
+  const { error } = await supabase.from("quiz_attempts").insert(attempts)
+  if (error) {
+    await supabase.from("quiz_attempts").insert(fallbackAttempts)
+  }
+}
+
+async function persistCustomQuestionsToSupabase(userId: string, storageKey: string, questions: PracticeQuestion[]): Promise<void> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase || !isSupabaseConfigured()) return
+  const authUserId = await getSupabaseAuthedUserId()
+  if (!authUserId || authUserId !== userId) return
+
+  await supabase.from("custom_questions").delete().eq("user_id", userId).eq("storage_key", storageKey)
+  if (questions.length === 0) return
+
+  const rows = questions.map((question) => ({
+    user_id: userId,
+    subject: deriveSubjectFromCustomQuestionKey(storageKey),
+    storage_key: storageKey,
+    question_data: question,
+    updated_at: new Date().toISOString(),
+  }))
+  const fallbackRows = rows.map((row) => ({
+    user_id: row.user_id,
+    storage_key: row.storage_key,
+    question_data: row.question_data,
+    created_at: row.updated_at,
+  }))
+
+  const { error } = await supabase.from("custom_questions").insert(rows)
+  if (error) {
+    await supabase.from("custom_questions").insert(fallbackRows)
+  }
+}
+
+async function persistClassGroupsToSupabase(userId: string, groups: ClassGroup[]): Promise<void> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase || !isSupabaseConfigured()) return
+  const authUserId = await getSupabaseAuthedUserId()
+  if (!authUserId || authUserId !== userId) return
+
+  const ownedGroups = groups.filter((group) => group.teacherId === userId || group.memberIds.includes(userId))
+  const payloads = [
+    {
+      user_id: userId,
+      item_type: "class_groups",
+      item_key: "default",
+      item_data: ownedGroups,
+      created_at: new Date().toISOString(),
+    },
+    {
+      user_id: userId,
+      key: "class_groups",
+      data: ownedGroups,
+      created_at: new Date().toISOString(),
+    },
+  ]
+
+  for (const payload of payloads) {
+    const { error } = await (supabase.from("saved_items") as any).upsert(payload, {
+      onConflict: "user_id,item_type,item_key",
+    })
+    if (!error) break
+  }
+}
+
+function mirrorLegacyKeysToSupabaseUser(oldUserId: string, supabaseUserId: string): void {
+  if (typeof window === "undefined" || oldUserId === supabaseUserId) return
+  const keys = Object.keys(localStorage)
+  keys.forEach((key) => {
+    const token = `_${oldUserId}_`
+    if (!key.includes(token)) return
+    const migratedKey = key.replace(token, `_${supabaseUserId}_`)
+    if (localStorage.getItem(migratedKey) !== null) return
+    const value = localStorage.getItem(key)
+    if (value !== null) localStorage.setItem(migratedKey, value)
+  })
+}
+
+async function migrateAndHydrateSupabaseUserData(user: UserAccount, previousUserId: string | null): Promise<Partial<UserAccount>> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase || !isSupabaseConfigured() || typeof window === "undefined") return {}
+  const authUserId = await getSupabaseAuthedUserId()
+  if (!authUserId || authUserId !== user.id) return {}
+
+  const migrationMarker = `${SUPABASE_USER_MIGRATION_MARKER_PREFIX}${authUserId}`
+  if (localStorage.getItem(migrationMarker) !== "done") {
+    if (previousUserId) mirrorLegacyKeysToSupabaseUser(previousUserId, authUserId)
+
+    USER_PROGRESS_MIGRATION_LEVELS.forEach((level) => {
+      const anonProgress = localStorage.getItem(`trinfinity_def_progress_${level}`)
+      if (anonProgress && !localStorage.getItem(`trinfinity_def_progress_${authUserId}_${level}`)) {
+        localStorage.setItem(`trinfinity_def_progress_${authUserId}_${level}`, anonProgress)
+      }
+      const anonCompletion = localStorage.getItem(`trinfinity_def_completion_${level}`)
+      if (anonCompletion && !localStorage.getItem(`trinfinity_def_completion_${authUserId}_${level}`)) {
+        localStorage.setItem(`trinfinity_def_completion_${authUserId}_${level}`, anonCompletion)
+      }
+    })
+
+    for (const storageKey of ASSIGNMENT_CUSTOM_QUESTION_STORAGE_KEYS) {
+      const questions = parseStoredJSON<PracticeQuestion[]>(localStorage.getItem(storageKey), [])
+      await persistCustomQuestionsToSupabase(authUserId, storageKey, questions)
+    }
+
+    for (const key of Object.keys(localStorage)) {
+      if (!key.includes(`_${authUserId}_`)) continue
+      if (!key.startsWith("trinfinity_def_progress_") &&
+          !key.startsWith("trinfinity_def_completion_") &&
+          !key.startsWith("trinfinity_exam_progress_") &&
+          !key.startsWith("trinfinity_calc_progress_") &&
+          !key.startsWith("trinfinity_outcome_ratings_")) {
+        continue
+      }
+      const value = parseStoredJSON<unknown>(localStorage.getItem(key), {})
+      await persistUserProgressKeyToSupabase(authUserId, key, value)
+      if (key.startsWith("trinfinity_exam_progress_")) {
+        const level = key.replace(`trinfinity_exam_progress_${authUserId}_`, "")
+        await persistQuizAttemptsToSupabase(authUserId, level, value as ExamProgress)
+      }
+    }
+
+    await persistClassGroupsToSupabase(authUserId, loadClassGroups())
+    localStorage.setItem(migrationMarker, "done")
+  }
+
+  const profileUpdate: Partial<UserAccount> = {}
+  const { data: profile } = await supabase.from("profiles").select("*").eq("id", authUserId).maybeSingle()
+  if (profile) {
+    const profileName = (profile.full_name ?? profile.name) as string | undefined
+    const profileAccountType = profile.account_type as AccountType | undefined
+    if (profileName) profileUpdate.name = profileName
+    if (profileAccountType === "teacher" || profileAccountType === "pupil") profileUpdate.accountType = profileAccountType
+  }
+
+  const { data: settings } = await supabase.from("user_settings").select("*").eq("user_id", authUserId).maybeSingle()
+  if (settings) {
+    const storedLevels = (settings.subject_levels ?? settings.subjectLevels ?? settings.settings?.subjectLevels) as
+      | Partial<Record<SubjectId, string>>
+      | undefined
+    const storedDisableLocking = settings.disable_mode_locking ?? settings.disableModeLocking ?? settings.settings?.disableModeLocking
+    if (storedLevels) profileUpdate.subjectLevels = storedLevels
+    if (typeof storedDisableLocking === "boolean") profileUpdate.disableModeLocking = storedDisableLocking
+  }
+
+  const { data: customQuestions } = await supabase
+    .from("custom_questions")
+    .select("storage_key, question_data")
+    .eq("user_id", authUserId)
+
+  if (Array.isArray(customQuestions)) {
+    const grouped = new Map<string, PracticeQuestion[]>()
+    customQuestions.forEach((row) => {
+      const key = String(row.storage_key ?? "")
+      if (!key) return
+      const existing = grouped.get(key) ?? []
+      existing.push(row.question_data as PracticeQuestion)
+      grouped.set(key, existing)
+    })
+    grouped.forEach((questions, key) => {
+      localStorage.setItem(key, JSON.stringify(questions))
+    })
+  }
+
+  const { data: progressRows } = await supabase
+    .from("user_progress")
+    .select("item_key, progress_data, key, data")
+    .eq("user_id", authUserId)
+
+  if (Array.isArray(progressRows)) {
+    progressRows.forEach((row) => {
+      const storageKey = (row.item_key ?? row.key) as string | undefined
+      const storageData = row.progress_data ?? row.data
+      if (!storageKey || storageData === undefined) return
+      localStorage.setItem(storageKey, JSON.stringify(storageData))
+    })
+  }
+
+  const { data: savedGroups } = await supabase
+    .from("saved_items")
+    .select("item_data, data")
+    .eq("user_id", authUserId)
+    .eq("item_type", "class_groups")
+    .eq("item_key", "default")
+    .maybeSingle()
+
+  if (savedGroups?.item_data || savedGroups?.data) {
+    const groups = (savedGroups.item_data ?? savedGroups.data) as ClassGroup[]
+    const merged = [...TEST_CLASS_GROUPS, ...groups.filter((g) => !TEST_CLASS_GROUPS.some((t) => t.id === g.id))]
+    saveClassGroups(merged)
+  }
+
+  return profileUpdate
+}
+
+function upsertLocalAccount(account: UserAccount): void {
+  if (account.isTestAccount) return
+  const accounts = loadAccounts()
+  const existingIndex = accounts.findIndex(
+    (candidate) => !candidate.isTestAccount && (candidate.id === account.id || candidate.email.toLowerCase() === account.email.toLowerCase()),
+  )
+  if (existingIndex >= 0) {
+    const updated = [...accounts]
+    updated[existingIndex] = { ...updated[existingIndex], ...account }
+    saveAccounts(updated)
+    return
+  }
+  saveAccounts([...accounts, account])
+}
+
 // --- Definitions Mode Types & Data ---
 
 interface DefinitionEntry {
@@ -1324,7 +1682,9 @@ function saveUserDefProgress(userId: string, level: string, progress: Record<str
   try {
     if (typeof window === "undefined") return
     if (!VALID_LEVELS.includes(level)) return
-    localStorage.setItem(`trinfinity_def_progress_${userId}_${level}`, JSON.stringify(progress))
+    const key = `trinfinity_def_progress_${userId}_${level}`
+    localStorage.setItem(key, JSON.stringify(progress))
+    void persistUserProgressKeyToSupabase(userId, key, progress)
   } catch {}
 }
 
@@ -1358,7 +1718,9 @@ function saveUserDefCompletion(userId: string, level: string, completion: DefCom
   try {
     if (typeof window === "undefined") return
     if (!VALID_LEVELS.includes(level)) return
-    localStorage.setItem(`trinfinity_def_completion_${userId}_${level}`, JSON.stringify(completion))
+    const key = `trinfinity_def_completion_${userId}_${level}`
+    localStorage.setItem(key, JSON.stringify(completion))
+    void persistUserProgressKeyToSupabase(userId, key, completion)
   } catch {}
 }
 
@@ -1375,7 +1737,10 @@ function loadUserExamProgress(userId: string, level: string): ExamProgress {
 function saveUserExamProgress(userId: string, level: string, progress: ExamProgress): void {
   try {
     if (typeof window === "undefined") return
-    localStorage.setItem(`trinfinity_exam_progress_${userId}_${level}`, JSON.stringify(progress))
+    const key = `trinfinity_exam_progress_${userId}_${level}`
+    localStorage.setItem(key, JSON.stringify(progress))
+    void persistUserProgressKeyToSupabase(userId, key, progress)
+    void persistQuizAttemptsToSupabase(userId, level, progress)
   } catch {}
 }
 
@@ -1408,7 +1773,9 @@ function loadUserCalcProgress(userId: string, level: string): CalcProgress {
 function saveUserCalcProgress(userId: string, level: string, progress: CalcProgress): void {
   try {
     if (typeof window === "undefined") return
-    localStorage.setItem(`trinfinity_calc_progress_${userId}_${level}`, JSON.stringify(progress))
+    const key = `trinfinity_calc_progress_${userId}_${level}`
+    localStorage.setItem(key, JSON.stringify(progress))
+    void persistUserProgressKeyToSupabase(userId, key, progress)
   } catch {}
 }
 
@@ -1427,7 +1794,9 @@ function loadOutcomeRatings(userId: string, subject: string, level: string): Out
 function saveOutcomeRatings(userId: string, subject: string, level: string, ratings: OutcomeRatings): void {
   try {
     if (typeof window === "undefined") return
-    localStorage.setItem(`trinfinity_outcome_ratings_${userId}_${subject}_${level}`, JSON.stringify(ratings))
+    const key = `trinfinity_outcome_ratings_${userId}_${subject}_${level}`
+    localStorage.setItem(key, JSON.stringify(ratings))
+    void persistUserProgressKeyToSupabase(userId, key, ratings)
   } catch {}
 }
 
@@ -5189,6 +5558,9 @@ function AssignmentMode({
   function saveCustomQuestions(updated: PracticeQuestion[]) {
     setCustomQuestions(updated)
     if (typeof window !== "undefined") localStorage.setItem(ASSIGNMENT_CUSTOM_QUESTIONS_KEY, JSON.stringify(updated))
+    if (currentUser?.id) {
+      void persistCustomQuestionsToSupabase(currentUser.id, ASSIGNMENT_CUSTOM_QUESTIONS_KEY, updated)
+    }
   }
 
   // ── Mark state ───────────────────────────────────────────────────────────
@@ -6458,16 +6830,36 @@ function AuthModal({
           return
         }
 
-        const persistedAccount = found ?? {
-          id: generateId(),
-          name: normalizedEmail.split("@")[0],
-          email: normalizedEmail,
-          accountType: "pupil" as const,
+        const { data: authUserData } = await supabase.auth.getUser()
+        const authUser = authUserData.user
+        if (!authUser) {
+          setError("Signed in, but failed to load your profile. Please try again.")
+          return
         }
-        if (!found) {
-          saveAccounts([...accounts, persistedAccount])
+
+        const metaName = typeof authUser.user_metadata?.name === "string" ? authUser.user_metadata.name : undefined
+        const metaAccountType = authUser.user_metadata?.accountType === "teacher" ? "teacher" : "pupil"
+        const metaSubjectLevels = authUser.user_metadata?.subjectLevels as Partial<Record<SubjectId, string>> | undefined
+
+        const persistedAccount: UserAccount = {
+          ...(found ?? {
+            id: authUser.id,
+            name: metaName ?? normalizedEmail.split("@")[0],
+            email: authUser.email ?? normalizedEmail,
+            accountType: metaAccountType,
+          }),
+          id: authUser.id,
+          name: found?.name ?? metaName ?? normalizedEmail.split("@")[0],
+          email: authUser.email ?? normalizedEmail,
+          accountType: found?.accountType ?? metaAccountType,
+          subjectLevels: found?.subjectLevels ?? metaSubjectLevels,
+          disableModeLocking: found?.disableModeLocking,
+          isTestAccount: false,
         }
+
+        upsertLocalAccount(persistedAccount)
         saveCurrentUser(persistedAccount)
+        void upsertSupabaseProfileAndSettings(persistedAccount)
         onSignIn(persistedAccount)
         onClose()
         return
@@ -6516,7 +6908,7 @@ function AuthModal({
       return
     }
 
-    const { error: supabaseError } = await supabase.auth.signUp({
+    const { data: signUpData, error: supabaseError } = await supabase.auth.signUp({
       email: finalUser.email,
       password: plainPassword,
       options: {
@@ -6535,12 +6927,12 @@ function AuthModal({
 
     const newUser: UserAccount = {
       ...finalUser,
+      id: signUpData.user?.id ?? finalUser.id,
+      email: signUpData.user?.email ?? finalUser.email,
     }
-    const accounts = loadAccounts()
-    if (!accounts.some((a) => a.email.toLowerCase() === newUser.email.toLowerCase())) {
-      saveAccounts([...accounts, newUser])
-    }
+    upsertLocalAccount(newUser)
     saveCurrentUser(newUser)
+    void upsertSupabaseProfileAndSettings(newUser)
     setSuccess("Account created!")
     setTimeout(() => {
       onSignIn(newUser, true)
@@ -6967,6 +7359,7 @@ function ClassManagement({
     }
     const updated = [...groups, newGroup]
     saveClassGroups(updated)
+    void persistClassGroupsToSupabase(currentUser.id, updated)
     setGroups(updated)
     setNewClassName("")
   }
@@ -6974,6 +7367,7 @@ function ClassManagement({
   function handleDeleteClass(groupId: string) {
     const updated = groups.filter((g) => g.id !== groupId)
     saveClassGroups(updated)
+    void persistClassGroupsToSupabase(currentUser.id, updated)
     setGroups(updated)
   }
 
@@ -6993,6 +7387,7 @@ function ClassManagement({
       g.id === group.id ? { ...g, memberIds: [...g.memberIds, currentUser.id] } : g
     )
     saveClassGroups(updated)
+    void persistClassGroupsToSupabase(currentUser.id, updated)
     setGroups(updated)
     setJoinCode("")
   }
@@ -7002,6 +7397,7 @@ function ClassManagement({
       g.id === groupId ? { ...g, memberIds: g.memberIds.filter((id) => id !== currentUser.id) } : g
     )
     saveClassGroups(updated)
+    void persistClassGroupsToSupabase(currentUser.id, updated)
     setGroups(updated)
   }
 
@@ -13492,8 +13888,8 @@ function ProfileModal({
       const newValue = false
       setDisableModeLocking(newValue)
       const updated: UserAccount = { ...currentUser, subjectLevels, disableModeLocking: newValue }
-      const accounts = loadAccounts()
-      saveAccounts(accounts.map((a) => (a.id === updated.id ? updated : a)))
+      upsertLocalAccount(updated)
+      void upsertSupabaseProfileAndSettings(updated)
       saveCurrentUser(updated)
       onUpdateUser(updated)
     }
@@ -13503,8 +13899,8 @@ function ProfileModal({
     setDisableModeLocking(true)
     setShowLockingWarning(false)
     const updated: UserAccount = { ...currentUser, subjectLevels, disableModeLocking: true }
-    const accounts = loadAccounts()
-    saveAccounts(accounts.map((a) => (a.id === updated.id ? updated : a)))
+    upsertLocalAccount(updated)
+    void upsertSupabaseProfileAndSettings(updated)
     saveCurrentUser(updated)
     onUpdateUser(updated)
   }
@@ -13560,8 +13956,8 @@ function ProfileModal({
 
   function handleSaveLevels() {
     const updated: UserAccount = { ...currentUser, subjectLevels, disableModeLocking }
-    const accounts = loadAccounts()
-    saveAccounts(accounts.map((a) => (a.id === updated.id ? updated : a)))
+    upsertLocalAccount(updated)
+    void upsertSupabaseProfileAndSettings(updated)
     saveCurrentUser(updated)
     onUpdateUser(updated)
     setSaved(true)
@@ -14156,6 +14552,7 @@ export default function App() {
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [classesModalOpen, setClassesModalOpen] = useState(false)
   const [profileModalOpen, setProfileModalOpen] = useState(false)
+  const [userDataVersion, setUserDataVersion] = useState(0)
 
   function handleSignIn(user: UserAccount, isNewAccount = false) {
     // Record last login; only increment session count for returning logins (not new account creation)
@@ -14164,9 +14561,9 @@ export default function App() {
       lastLogin: Date.now(),
       totalSessions: isNewAccount ? 1 : (user.totalSessions ?? 0) + 1,
     }
-    const accounts = loadAccounts()
     if (!updated.isTestAccount) {
-      saveAccounts(accounts.map((a) => (a.id === updated.id ? updated : a)))
+      upsertLocalAccount(updated)
+      void upsertSupabaseProfileAndSettings(updated)
     }
     saveCurrentUser(updated)
     setCurrentUser(updated)
@@ -14180,6 +14577,85 @@ export default function App() {
     saveCurrentUser(null)
     setCurrentUser(null)
   }
+
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase || !isSupabaseConfigured()) return
+    let cancelled = false
+    let syncPromise: Promise<void> | null = null
+
+    const syncAuthedUser = async () => {
+      const { data, error } = await supabase.auth.getUser()
+      if (cancelled || error || !data.user) return
+
+      const authUser = data.user
+      const previous = loadCurrentUser()
+      const baseName =
+        previous?.name ??
+        (typeof authUser.user_metadata?.name === "string" ? authUser.user_metadata.name : undefined) ??
+        authUser.email?.split("@")[0] ??
+        "User"
+      const baseType: AccountType =
+        previous?.accountType ??
+        (authUser.user_metadata?.accountType === "teacher" ? "teacher" : "pupil")
+      const baseLevels = (previous?.subjectLevels ??
+        authUser.user_metadata?.subjectLevels) as Partial<Record<SubjectId, string>> | undefined
+      const baseDisableModeLocking = previous?.disableModeLocking
+      const userForSync: UserAccount = {
+        id: authUser.id,
+        name: baseName,
+        email: authUser.email ?? previous?.email ?? "",
+        accountType: baseType,
+        subjectLevels: baseLevels,
+        disableModeLocking: baseDisableModeLocking,
+        lastLogin: previous?.lastLogin,
+        totalSessions: previous?.totalSessions,
+      }
+
+      await upsertSupabaseProfileAndSettings(userForSync)
+      const hydratedFields = await migrateAndHydrateSupabaseUserData(userForSync, previous?.id ?? null)
+      const mergedUser: UserAccount = {
+        ...userForSync,
+        ...hydratedFields,
+        id: authUser.id,
+        email: authUser.email ?? userForSync.email,
+      }
+      upsertLocalAccount(mergedUser)
+      saveCurrentUser(mergedUser)
+      if (!cancelled) {
+        setCurrentUser(mergedUser)
+        setUserDataVersion((version) => version + 1)
+      }
+    }
+
+    const runSyncAuthedUser = () => {
+      if (syncPromise) return syncPromise
+      syncPromise = syncAuthedUser()
+        .catch((err) => {
+          console.error("[Supabase Sync] Failed to sync authenticated user:", err)
+        })
+        .finally(() => {
+          syncPromise = null
+        })
+      return syncPromise
+    }
+
+    void runSyncAuthedUser()
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || !session?.user) {
+        saveCurrentUser(null)
+        setCurrentUser(null)
+        return
+      }
+      void runSyncAuthedUser()
+    })
+
+    return () => {
+      cancelled = true
+      authListener.subscription.unsubscribe()
+    }
+  }, [])
 
   // Calculate weak topics based on performance data
   const weakTopics = useMemo(() => {
@@ -14523,6 +14999,7 @@ export default function App() {
         )}
         {view === "definitions" && (
           <DefinitionsMode
+            key={`definitions-${currentUser?.id ?? "anon"}-${selectedLevel}-${userDataVersion}`}
             selectedLevel={selectedLevel}
             selectedSubject={selectedSubject}
             onBack={() => setView("mode")}
@@ -14532,6 +15009,7 @@ export default function App() {
         )}
         {view === "calculations" && (
           <CalculationsMode
+            key={`calculations-${currentUser?.id ?? "anon"}-${selectedLevel}-${userDataVersion}`}
             selectedLevel={selectedLevel}
             selectedSubject={selectedSubject}
             onBack={() => setView("mode")}
@@ -14541,6 +15019,7 @@ export default function App() {
         )}
         {view === "assignment" && (
           <AssignmentMode
+            key={`assignment-${currentUser?.id ?? "anon"}-${selectedSubject}-${userDataVersion}`}
             selectedLevel={selectedLevel}
             selectedSubject={selectedSubject}
             onBack={() => setView("mode")}
@@ -14550,6 +15029,7 @@ export default function App() {
         )}
         {view === "exam-paper" && (
           <ExamPaperMode
+            key={`exam-paper-${currentUser?.id ?? "anon"}-${selectedLevel}-${userDataVersion}`}
             selectedLevel={selectedLevel}
             onBack={() => setView("mode")}
             isDarkMode={isDarkMode}
@@ -14588,6 +15068,7 @@ export default function App() {
       </main>
       <FloatingMenu isDarkMode={isDarkMode} toggleDarkMode={() => setIsDarkMode(!isDarkMode)} openModal={setActiveModal} view={view} currentUser={currentUser} selectedSubject={selectedSubject} />
       <GenericModal
+        key={`generic-modal-${currentUser?.id ?? "anon"}-${selectedSubject}-${selectedLevel}-${userDataVersion}`}
         activeModal={activeModal}
         onClose={() => setActiveModal(null)}
         userCoverage={userCoverage}
@@ -14606,6 +15087,7 @@ export default function App() {
       />
       {classesModalOpen && currentUser && (
         <ClassManagement
+          key={`classes-${currentUser.id}-${userDataVersion}`}
           currentUser={currentUser}
           isDarkMode={isDarkMode}
           onClose={() => setClassesModalOpen(false)}
@@ -14613,10 +15095,14 @@ export default function App() {
       )}
       {profileModalOpen && currentUser && (
         <ProfileModal
+          key={`profile-${currentUser.id}-${userDataVersion}`}
           currentUser={currentUser}
           isDarkMode={isDarkMode}
           onClose={() => setProfileModalOpen(false)}
-          onUpdateUser={(updated) => setCurrentUser(updated)}
+          onUpdateUser={(updated) => {
+            setCurrentUser(updated)
+            setUserDataVersion((version) => version + 1)
+          }}
         />
       )}
       {/* "Wrong place" popup for "not sitting" subjects */}
