@@ -21,6 +21,22 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3
 
 If these are not set, the app falls back to local account storage.
 
+### Supabase auth setup checklist
+
+1. In Supabase Authentication, enable Email provider and Email/Password signups.
+2. Configure URL settings:
+   - Site URL: `http://localhost:5000` (and your production domain)
+   - Redirect URLs: `http://localhost:5000/auth/callback` (and your production callback URL)
+3. Run the SQL in `supabase/migrations/20260513082300_create_profiles.sql`.
+4. Create a `profiles` row for each signed-up user after account creation (in app code or via a DB trigger).
+
+App routes:
+
+- `/signup` for account creation
+- `/login` for email/password login
+- `/auth/callback` for email confirmation/session exchange
+- `/todos` protected with server-side auth checks
+
 ## Supabase persistence expectations
 
 When Supabase is configured, the app uses Supabase Auth plus user-owned table data for persisted user progress/settings/custom content.
@@ -46,7 +62,7 @@ yarn dev
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:5000](http://localhost:5000) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
