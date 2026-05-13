@@ -14,6 +14,9 @@ export const createClient = async (request: NextRequest) => {
   })
 
   if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn(
+      "Supabase middleware skipped: missing NEXT_PUBLIC_SUPABASE_URL and/or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY).",
+    )
     return supabaseResponse
   }
 
@@ -40,7 +43,7 @@ export const createClient = async (request: NextRequest) => {
     await supabase.auth.getUser()
   } catch (error) {
     console.error(
-      "Supabase middleware auth refresh failed. Check Supabase env vars, credentials, and network connectivity. Continuing request without session refresh.",
+      "Supabase middleware auth refresh failed. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY), credentials, and network connectivity. Continuing request without session refresh.",
       error,
     )
     return supabaseResponse
