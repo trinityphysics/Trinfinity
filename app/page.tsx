@@ -7096,18 +7096,29 @@ function AuthModal({
           </div>
         </div>
 
-        {/* Tabs — Sign-up is disabled; accounts are managed by administrators */}
+        {/* Tabs */}
         <div className={`flex rounded-xl p-1 mb-6 ${isDarkMode ? "bg-slate-800" : "bg-slate-100"}`}>
           <button
             onClick={() => { setTab("signin"); setError(""); }}
-            className="flex-1 py-2 px-4 rounded-lg text-sm font-bold transition-all bg-[#800000] text-white shadow-md"
+            className={`flex-1 py-2 px-4 rounded-lg text-sm font-bold transition-all ${
+              tab === "signin"
+                ? "bg-[#800000] text-white shadow-md"
+                : isDarkMode ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-slate-900"
+            }`}
           >
             Sign In
           </button>
+          <button
+            onClick={() => { setTab("signup"); setError(""); }}
+            className={`flex-1 py-2 px-4 rounded-lg text-sm font-bold transition-all ${
+              tab === "signup"
+                ? "bg-[#800000] text-white shadow-md"
+                : isDarkMode ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            Create Account
+          </button>
         </div>
-        <p className={`-mt-3 mb-4 text-xs text-center ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
-          New accounts are created by your teacher. Use a demo account below to explore.
-        </p>
 
         {tab === "signin" ? (
           <form onSubmit={handleSignIn} className="flex flex-col gap-4">
