@@ -38,7 +38,8 @@ export const createClient = async (request: NextRequest) => {
 
   try {
     await supabase.auth.getUser()
-  } catch {
+  } catch (error) {
+    console.error("Supabase middleware auth refresh failed:", error)
     return supabaseResponse
   }
 
