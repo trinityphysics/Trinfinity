@@ -28,7 +28,7 @@ If these are not set, the app falls back to local account storage.
    - Site URL: `http://localhost:5000` (and your production domain)
    - Redirect URLs: `http://localhost:5000/auth/callback` (and your production callback URL)
 3. Run the SQL in `supabase/migrations/20260513082300_create_profiles.sql`.
-4. Create a `profiles` row for each signed-up user after account creation (in app code or via a DB trigger).
+4. Run `supabase/migrations/20260513093000_create_profile_on_signup_trigger.sql` so each new `auth.users` row automatically creates/updates a matching `public.profiles` row.
 
 App routes:
 
